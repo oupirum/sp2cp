@@ -1,0 +1,2 @@
+dataset/threads/*.txt
+**/__pycache__/
