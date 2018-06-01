@@ -73,7 +73,7 @@ class SaveStepCallback(Callback):
 			weights_file = os.path.join(
 					OPTS.models_dir,
 					'weights_e%d_b%d.h5' % (self._epoch, batch))
-			print('save weights:', weights_file)
+			print('\nsave weights:', weights_file)
 			self._model.save_weights(weights_file)
 
 			loss_file = os.path.join(
@@ -92,7 +92,8 @@ if __name__ == '__main__':
 	parser.add_argument(
 			'--models_dir',
 			type=str,
-			default='./models/')
+			default='./models/',
+			help='Directory to save model weights and checkpoints')
 	parser.add_argument(
 			'--epochs',
 			type=int,
@@ -104,7 +105,8 @@ if __name__ == '__main__':
 	parser.add_argument(
 			'--save_every_batch',
 			type=int,
-			default=100)
+			default=100,
+			help='How often to save weights')
 	OPTS = parser.parse_args()
 
 	main()

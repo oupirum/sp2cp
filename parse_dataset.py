@@ -45,7 +45,7 @@ def parse_dataset(ds_dir, lexicon_limit, seq_max_len=100, seq_min_len=5, split='
 	]
 	token2id = {v: i for i, v in enumerate(id2token)}
 
-	threads = parse_tokens(ds_dir)
+	threads = parse_threads(ds_dir)
 	threads = filter_short_threads(threads, seq_max_len)
 	print('threads:', len(threads))
 
@@ -64,11 +64,11 @@ def parse_dataset(ds_dir, lexicon_limit, seq_max_len=100, seq_min_len=5, split='
 			token2id[token] = len(token2id)
 	print('lexicon:', len(id2token))
 
-	seqs_ids = tokens_to_ids(sequences, token2id)
+	seqs_ids = sequences_ids(sequences, id2token)
 
 	return (seqs_ids, id2token, dict(tokens_count))
 
-def parse_tokens(ds_dir):
+def parse_threads(ds_dir):
 	threads = []
 
 	files = os.listdir(ds_dir)
@@ -89,10 +89,7 @@ def parse_tokens(ds_dir):
 			line = line.strip()
 			line = line.lower()
 			if line:
-				line_tokens = []
-				for token in line.split(' '):
-					process_token(token, line_tokens)
-
+				line_tokens = str_to_tokens(line)
 				if line_tokens:
 					for token in line_tokens:
 						thread.append(token)
@@ -104,6 +101,12 @@ def parse_tokens(ds_dir):
 			threads.append(thread)
 
 	return threads
+
+def str_to_tokens(s):
+	tokens = []
+	for token in s.split(' '):
+		process_token(token, tokens)
+	return tokens
 
 def filter_short_threads(threads, min_len):
 	threads = list(filter(
@@ -181,15 +184,16 @@ def split_to_plain_sequences(threads, seq_len):
 
 	return (sequences, lexicon)
 
-def tokens_to_ids(sequences, token2id):
-	seqs_tensors = []
+def sequences_ids(sequences, id2token):
+	token2id = {token: id for id, token in enumerate(id2token)}
+	seqs_ids = []
 
 	for sequence in sequences:
-		seqs_tensors.append(
+		seqs_ids.append(
 				[token2id[token] if token in token2id else token2id['<unk>'] \
 						for token in sequence])
 
-	return seqs_tensors
+	return seqs_ids
 
 def process_token(token, tokens):
 	token = token.strip()
