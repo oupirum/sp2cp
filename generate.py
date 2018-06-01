@@ -2,7 +2,6 @@ import argparse
 import os
 import json
 import re
-
 import numpy as np
 from model import create_model
 from parse_dataset import str_to_tokens
