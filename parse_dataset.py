@@ -81,26 +81,30 @@ def parse_threads(ds_dir):
 		print(i, '============================ ' + file + ' ==============================')
 		with open(os.path.join(ds_dir, file), 'rb') as f:
 			content = f.read().decode('utf-8')
-			lines = content.split('\n')
-		print(lines[0])
+		print(content.split('\n')[0])
 
-		thread = []
-		for line in lines:
-			line = line.strip()
-			line = line.lower()
-			if line:
-				line_tokens = str_to_tokens(line)
-				if line_tokens:
-					for token in line_tokens:
-						thread.append(token)
-					thread.append('<eol>')
-			else:
-				if thread and thread[-1] != '<eoc>':
-					thread.append('<eoc>')
+		thread = thread_to_tokens(content)
 		if thread:
 			threads.append(thread)
 
 	return threads
+
+def thread_to_tokens(thread_content):
+	thread_tokens = []
+	lines = thread_content.split('\n')
+	for line in lines:
+		line = line.strip()
+		line = line.lower()
+		if line:
+			line_tokens = str_to_tokens(line)
+			if line_tokens:
+				for token in line_tokens:
+					thread_tokens.append(token)
+				thread_tokens.append('<eol>')
+		else:
+			if thread_tokens and thread_tokens[-1] != '<eoc>':
+				thread_tokens.append('<eoc>')
+	return thread_tokens
 
 def str_to_tokens(s):
 	tokens = []
@@ -118,24 +122,6 @@ def filter_short_threads(threads, min_len):
 			lambda thread: len(thread) >= min_len,
 			threads))
 	return threads
-
-def split_to_comment_sequences(threads, seq_max_len, seq_min_len):
-	lexicon = Counter()
-
-	sequences = []
-	comment = []
-	for thread in threads:
-		for token in thread:
-			comment.append(token)
-			if token == '<eoc>':
-				if comment \
-						and len(comment) <= seq_max_len \
-						and len(comment) >= seq_min_len:
-					sequences.append(comment)
-					lexicon.update(comment)
-				comment = []
-
-	return (sequences, lexicon)
 
 def split_to_line_sequences(threads, seq_max_len, seq_min_len):
 	lexicon = Counter()
@@ -168,6 +154,24 @@ def split_to_line_sequences(threads, seq_max_len, seq_min_len):
 		if seq:
 			sequences.append(seq)
 			lexicon.update(seq)
+
+	return (sequences, lexicon)
+
+def split_to_comment_sequences(threads, seq_max_len, seq_min_len):
+	lexicon = Counter()
+
+	sequences = []
+	comment = []
+	for thread in threads:
+		for token in thread:
+			comment.append(token)
+			if token == '<eoc>':
+				if comment \
+						and len(comment) <= seq_max_len \
+						and len(comment) >= seq_min_len:
+					sequences.append(comment)
+					lexicon.update(comment)
+				comment = []
 
 	return (sequences, lexicon)
 

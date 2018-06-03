@@ -1,45 +1,35 @@
 import argparse
-import os
 import json
-import re
 import numpy as np
 from model import create_model
-from parse_dataset import str_to_tokens
+from parse_dataset import parse_threads, filter_short_threads, \
+		split_to_line_sequences
+from tensorflow.python.keras import backend as backend
 
 def main():
-	comments = []
-	files = os.listdir(OPTS.test_data_dir)
-	for file in files:
-		if not re.fullmatch('\d+\.txt', file):
-			continue
-		with open(os.path.join(OPTS.test_data_dir, file), 'rb') as f:
-			thread_str = f.read().decode('utf-8')
-			thread_comments = thread_str.split('\n\n')
-			thread_comments = list(filter(lambda tc: tc, thread_comments))
-			comments.extend(thread_comments)
+	threads = parse_threads(OPTS.test_data_dir)
+	threads = filter_short_threads(threads, 100)
+	sequences, tokens_count = split_to_line_sequences(threads, 150, 10)
+	print('sequences:', len(sequences))
+	generate(OPTS.weights_file, OPTS.id2token_file, sequences)
 
-	generate(OPTS.weights_file, OPTS.id2token_file, comments)
-
-def generate(weights_file, id2token_file, seed, min_len=100):
+def generate(weights_file, id2token_file, seeds, min_res_len=3):
 	model, id2token = load_model(weights_file, id2token_file)
 	token2id = {token: id for id, token in enumerate(id2token)}
 
-	if not isinstance(seed, list):
-		seed = [seed]
-
-	res_tokens = []
-	for seed_str in seed:
-		seed_tokens = str_to_tokens(seed_str)
+	results = []
+	for seed_tokens in seeds:
 		seed_ids = [token2id[token] if token in token2id else token2id['<unk>'] \
-			for token in seed_tokens]
-
-		res = gen_seq(model, seed_ids, min_len)
+				for token in seed_tokens]
+		res = gen_seq(model, seed_ids, min_res_len)
 		res_tokens = [id2token[id] for id in res]
+		results.append(res_tokens)
+		print(' '.join(seed_tokens))
+		print('>>>>>>', ' '.join(res_tokens))
 		print('')
-		print(seed_str)
-		print('>>>', ' '.join(res_tokens))
 
-	return res_tokens
+	backend.clear_session()
+	return results
 
 def load_model(weights_file, id2token_file):
 	with open(id2token_file, 'rb') as f:
@@ -54,19 +44,25 @@ def load_model(weights_file, id2token_file):
 
 	return (model, id2token)
 
-def gen_seq(model, seed, min_len):
+def gen_seq(model, seed, min_len,
+		end_tokens=[3],
+		forbidden_tokens=[1]):
 	generated = []
-	end_tokens = [2]
 
 	for id in seed:
 		ni_prob = model.predict(np.array(id)[None, None])[0, 0]
 
 	while True:
-		# TODO: ValueError: probabilities do not sum to 1
+		ni_prob /= ni_prob.sum()
 		next_id = np.random.choice(a=ni_prob.shape[-1], p=ni_prob)
 		generated.append(next_id)
-		if len(generated) > min_len and next_id in end_tokens:
+		if len(generated) >= min_len and next_id in end_tokens:
 			break
+
+		if next_id in forbidden_tokens:
+			model.reset_states()
+			return gen_seq(model, seed, min_len, end_tokens, forbidden_tokens)
+
 		ni_prob = model.predict(np.array(next_id)[None, None])[0, 0]
 
 	model.reset_states()

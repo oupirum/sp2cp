@@ -23,7 +23,7 @@ def main():
 		try:
 			threads = get_threads(OPTIONS.board)
 			for thread_id in threads:
-				process_thread(thread_id)
+				process_thread(thread_id, OPTIONS.board, OPTIONS.dataset_dir)
 		finally:
 			with open(readen_post_ids_path, 'w') as f:
 				f.write('\n'.join(readen_post_ids))
@@ -31,14 +31,15 @@ def main():
 		print('pause...')
 		time.sleep(1800)
 
-def process_thread(thread_id):
+def process_thread(thread_id, board, ds_dir):
 	try:
-		posts = get_thread_posts(OPTIONS.board, thread_id)
+		posts = get_thread_posts(board, thread_id, readen_post_ids)
+		print(len(readen_post_ids))
 		if len(posts) == 0:
 			return
 
 		with open(
-				os.path.join(OPTIONS.dataset_dir, thread_id + '.txt'),
+				os.path.join(ds_dir, thread_id + '.txt'),
 				'ab') as f:
 			comments = [post[1] for post in posts]
 			comments = '\n\n'.join(comments) + '\n\n'
@@ -50,30 +51,15 @@ def process_thread(thread_id):
 		print(traceback.format_exc(), thread_id)
 
 def get_threads(board):
-	req = urllib.request.Request(
-		'https://2ch.hk/' + board + '/threads.json')
-	resp = urllib.request.urlopen(req)
-	if resp.status != 200:
-		raise Exception('Could not request board %s (%d: %s)'
-				% (board, resp.status, resp.reason))
-	json_str = resp.read().decode('utf-8')
-
+	json_str = request_json('https://2ch.hk/' + board + '/threads.json')
 	threads = json.loads(json_str)
 	thread_ids = list(map(
 			lambda thread: thread['num'],
 			threads['threads']))
-
 	return thread_ids
 
-def get_thread_posts(board, thread_id):
-	req = urllib.request.Request(
-			'https://2ch.hk/' + board + '/res/' + thread_id + '.json')
-	resp = urllib.request.urlopen(req)
-	if resp.status != 200:
-		raise Exception('Could not request thread %s (%d: %s)'
-				% (thread_id, resp.status, resp.reason))
-	json_str = resp.read().decode('utf-8')
-
+def get_thread_posts(board, thread_id, readen_post_ids):
+	json_str = request_json('https://2ch.hk/' + board + '/res/' + thread_id + '.json')
 	thread = json.loads(json_str)
 	posts = list(map(
 			lambda post: (str(post['num']), post['comment']),
@@ -85,7 +71,6 @@ def get_thread_posts(board, thread_id):
 	if len(posts) > 0:
 		ids = [post[0] for post in posts]
 		readen_post_ids.update(ids)
-		print(len(readen_post_ids))
 
 	posts = list(map(
 			lambda post: (post[0], parse_post_html(post[1])),
@@ -95,6 +80,15 @@ def get_thread_posts(board, thread_id):
 			posts))
 
 	return posts
+
+def request_json(url):
+	req = urllib.request.Request(url)
+	resp = urllib.request.urlopen(req)
+	if resp.status != 200:
+		raise Exception('Error on request %s (%d: %s)'
+				% (url, resp.status, resp.reason))
+	json_str = resp.read().decode('utf-8')
+	return json_str
 
 def parse_post_html(post_html):
 	parser = PostHTMLParser()
