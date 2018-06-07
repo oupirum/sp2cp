@@ -11,22 +11,32 @@ def main():
 	threads = filter_short_threads(threads, 100)
 	sequences, tokens_count = split_to_line_sequences(threads, 150, 10)
 	print('sequences:', len(sequences))
-	generate(OPTS.weights_file, OPTS.id2token_file, sequences)
+	generate(OPTS.weights_file, OPTS.id2token_file, sequences,
+			max_res_len=OPTS.max_res_len)
 
-def generate(weights_file, id2token_file, seeds, min_res_len=3):
+def generate(weights_file, id2token_file, seeds,
+		min_res_len=3, max_res_len=30,
+		callback=None):
 	model, id2token = load_model(weights_file, id2token_file)
 	token2id = {token: id for id, token in enumerate(id2token)}
 
 	results = []
-	for seed_tokens in seeds:
+	for i, seed_tokens in enumerate(seeds):
 		seed_ids = [token2id[token] if token in token2id else token2id['<unk>'] \
 				for token in seed_tokens]
-		res = gen_seq(model, seed_ids, min_res_len)
+		res = gen_seq(model, seed_ids,
+				min_res_len, max_res_len,
+				end_tokens=[token2id['<eoc>']],
+				forbidden_tokens=[token2id['<unk>']])
 		res_tokens = [id2token[id] for id in res]
 		results.append(res_tokens)
-		print(' '.join(seed_tokens))
-		print('>>>>>>', ' '.join(res_tokens))
-		print('')
+
+		if callback:
+			callback(i, res_tokens)
+		else:
+			print('')
+			print(' '.join(seed_tokens))
+			print('>>>>>>', ' '.join(res_tokens))
 
 	backend.clear_session()
 	return results
@@ -44,9 +54,10 @@ def load_model(weights_file, id2token_file):
 
 	return (model, id2token)
 
-def gen_seq(model, seed, min_len,
-		end_tokens=[3],
-		forbidden_tokens=[1]):
+def gen_seq(model, seed,
+		min_len, max_len,
+		end_tokens,
+		forbidden_tokens):
 	generated = []
 
 	for id in seed:
@@ -61,11 +72,14 @@ def gen_seq(model, seed, min_len,
 
 		if next_id in forbidden_tokens:
 			model.reset_states()
-			return gen_seq(model, seed, min_len, end_tokens, forbidden_tokens)
+			return gen_seq(model, seed, min_len, max_len, end_tokens, forbidden_tokens)
 
 		ni_prob = model.predict(np.array(next_id)[None, None])[0, 0]
 
 	model.reset_states()
+
+	if len(generated) > max_len:
+		return gen_seq(model, seed, min_len, max_len, end_tokens, forbidden_tokens)
 
 	return generated
 
@@ -84,6 +98,10 @@ if __name__ == '__main__':
 			'--test_data_dir',
 			type=str,
 			default='./tests/dataset/threads/')
+	parser.add_argument(
+			'--max_res_len',
+			type=int,
+			default=100)
 	OPTS = parser.parse_args()
 
 	main()
