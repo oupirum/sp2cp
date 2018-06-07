@@ -13,14 +13,17 @@ class TestDownloadThreads:
 		with open('./tests/thread.json', 'rb') as f:
 			posts = json.loads(f.read().decode('utf-8'))['threads'][0]['posts']
 
-			post_text = parse_post_html(posts[16]['comment'])
-			assert(post_text == 'Привет. Я хочу твой задний проход.')
+			comment, reply_to = parse_post_html(posts[16]['comment'])
+			assert(comment == 'Привет. Я хочу твой задний проход.')
+			assert(reply_to == ['175406614'])
 
-			post_text = parse_post_html(posts[18]['comment'])
-			assert(post_text == ''
+			comment, reply_to = parse_post_html(posts[18]['comment'])
+			assert(comment == ''
 					'/b\n'
 					'Помогать дыре в мясе\n'
 					'А ты смешной.')
+			assert(reply_to == [])
+
 
 	def test_get_threads(self, monkeypatch):
 		def request_fake(url):
@@ -42,10 +45,13 @@ class TestDownloadThreads:
 		posts = get_thread_posts('b', '123', set())
 
 		assert(len(posts) == 100)
-		assert(posts[6] == ('175407315',
+		assert(posts[6].id == '175407315')
+		assert(posts[6].comment == ''
 				'Да, замочная скважина у них такая, что ничего не засунуть - '
 				'пробовала вчера. Она какая-то скрытая, блин.\nДа и за '
-				'хулиганство уехать не охота.'))
+				'хулиганство уехать не охота.')
+		assert(posts[6].reply_to == [])
+
 
 	def test_get_threads_real_request(self):
 		threads = get_threads('b')
@@ -59,5 +65,6 @@ class TestDownloadThreads:
 		posts = get_thread_posts('b', threads[0], set())
 
 		assert(len(posts) > 0)
-		assert(isinstance(posts[0][0], str))
-		assert(isinstance(posts[0][1], str))
+		assert(isinstance(posts[0].id, str))
+		assert(isinstance(posts[0].comment, str))
+		assert(isinstance(posts[0].reply_to, list))

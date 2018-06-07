@@ -43,6 +43,7 @@ class TestParseDataset():
 		process_token(token, tokens)
 		assert(tokens == expect_tokens)
 
+
 	def test_parse_dataset(self):
 		ds_dir = './tests/dataset/threads/'
 		seqs, id2token, lexicon = parse_dataset(ds_dir, 5000)
@@ -57,6 +58,7 @@ class TestParseDataset():
 		assert('<eol>' in lexicon)
 		assert('<eoc>' in lexicon)
 		assert(len(id2token) == len(lexicon) + 2)  # words + <pad>, <unk>
+
 
 	def test_split_to_comment_sequences(self):
 		seqs, _ = split_to_comment_sequences([
