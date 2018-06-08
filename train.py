@@ -68,8 +68,7 @@ class SaveStepCallback(Callback):
 		self._epoch = epoch
 
 	def on_batch_end(self, batch, logs={}):
-		step = (self._epoch + 1) * (batch + 1)
-		if step % self._save_every == 0:
+		if (batch + 1) % self._save_every == 0:
 			weights_file = os.path.join(
 					OPTS.models_dir,
 					'weights_e%d_b%d.h5' % (self._epoch, batch))
