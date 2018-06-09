@@ -11,77 +11,81 @@ def main():
 	threads = filter_short_threads(threads, 100)
 	sequences, tokens_count = split_to_line_sequences(threads, 150, 10)
 	print('sequences:', len(sequences))
-	generate(OPTS.weights_file, OPTS.id2token_file, sequences,
+	Generator(OPTS.weights_file, OPTS.id2token_file).generate(
+			sequences,
 			max_res_len=OPTS.max_res_len)
 
-def generate(weights_file, id2token_file, seeds,
-		min_res_len=3, max_res_len=30,
-		callback=None):
-	model, id2token = load_model(weights_file, id2token_file)
-	token2id = {token: id for id, token in enumerate(id2token)}
 
-	results = []
-	for i, seed_tokens in enumerate(seeds):
-		seed_ids = [token2id[token] if token in token2id else token2id['<unk>'] \
-				for token in seed_tokens]
-		res = gen_seq(model, seed_ids,
-				min_res_len, max_res_len,
-				end_tokens=[token2id['<eoc>']],
-				forbidden_tokens=[token2id['<unk>']])
-		res_tokens = [id2token[id] for id in res]
-		results.append(res_tokens)
+class Generator:
+	def __init__(self, weights_file, id2token_file):
+		self._model, self._id2token = self._load_model(weights_file, id2token_file)
+		self._token2id = {token: id for id, token in enumerate(self._id2token)}
 
-		if callback:
-			callback(i, res_tokens)
-		else:
-			print('')
-			print(' '.join(seed_tokens))
-			print('>>>>>>', ' '.join(res_tokens))
+	def generate(self, seeds,
+			min_res_len=3, max_res_len=30,
+			callback=None):
+		results = []
+		for i, seed_tokens in enumerate(seeds):
+			seed_ids = [self._token2id[token] if token in self._token2id else self._token2id['<unk>'] \
+					for token in seed_tokens]
+			res = self._gen_seq(seed_ids,
+					min_res_len, max_res_len,
+					end_tokens=[self._token2id['<eoc>']],
+					forbidden_tokens=[self._token2id['<unk>']])
+			res_tokens = [self._id2token[id] for id in res]
+			results.append(res_tokens)
 
-	backend.clear_session()
-	return results
+			if callback:
+				callback(i, res_tokens)
+			else:
+				print('')
+				print(' '.join(seed_tokens))
+				print('>>>>>>', ' '.join(res_tokens))
 
-def load_model(weights_file, id2token_file):
-	with open(id2token_file, 'rb') as f:
-		id2token = json.loads(f.read().decode('utf-8'))
+		# backend.clear_session()
+		return results
 
-	model = create_model(
-			seq_len=1,
-			n_input_nodes=len(id2token),
-			batch_size=1,
-			stateful=True)
-	model.load_weights(weights_file)
+	def _load_model(self, weights_file, id2token_file):
+		with open(id2token_file, 'rb') as f:
+			id2token = json.loads(f.read().decode('utf-8'))
 
-	return (model, id2token)
+		model = create_model(
+				seq_len=1,
+				n_input_nodes=len(id2token),
+				batch_size=1,
+				stateful=True)
+		model.load_weights(weights_file)
 
-def gen_seq(model, seed,
-		min_len, max_len,
-		end_tokens,
-		forbidden_tokens):
-	generated = []
+		return (model, id2token)
 
-	for id in seed:
-		ni_prob = model.predict(np.array(id)[None, None])[0, 0]
+	def _gen_seq(self, seed,
+			min_len, max_len,
+			end_tokens,
+			forbidden_tokens):
+		generated = []
 
-	while True:
-		ni_prob /= ni_prob.sum()
-		next_id = np.random.choice(a=ni_prob.shape[-1], p=ni_prob)
-		generated.append(next_id)
-		if len(generated) >= min_len and next_id in end_tokens:
-			break
+		for id in seed:
+			ni_prob = self._model.predict(np.array(id)[None, None])[0, 0]
 
-		if next_id in forbidden_tokens:
-			model.reset_states()
-			return gen_seq(model, seed, min_len, max_len, end_tokens, forbidden_tokens)
+		while True:
+			ni_prob /= ni_prob.sum()
+			next_id = np.random.choice(a=ni_prob.shape[-1], p=ni_prob)
+			generated.append(next_id)
+			if len(generated) >= min_len and next_id in end_tokens:
+				break
 
-		ni_prob = model.predict(np.array(next_id)[None, None])[0, 0]
+			if next_id in forbidden_tokens:
+				self._model.reset_states()
+				return self._gen_seq(seed, min_len, max_len, end_tokens, forbidden_tokens)
 
-	model.reset_states()
+			ni_prob = self._model.predict(np.array(next_id)[None, None])[0, 0]
 
-	if len(generated) > max_len:
-		return gen_seq(model, seed, min_len, max_len, end_tokens, forbidden_tokens)
+		self._model.reset_states()
 
-	return generated
+		if len(generated) > max_len:
+			return self._gen_seq(seed, min_len, max_len, end_tokens, forbidden_tokens)
+
+		return generated
 
 
 if __name__ == '__main__':

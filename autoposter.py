@@ -1,128 +1,182 @@
 import argparse
+import sys
 import urllib.error
 from download_threads import get_threads, get_thread_posts
-from generate import generate
+from generate import Generator
 from parse_dataset import thread_to_tokens
 import requests
 import time
 import random
 import re
 import threading
+import queue
 
-# weights_file = './models/200000_100_plain/weights_b9500.h5'
-# id2token_file = './models/200000_100_plain/id2token.json'
-
-post_interval = 25
-last_post_time = 0
+OPTS = None
+# lpt_lock = threading.Lock()
+posting_queue = queue.Queue()
+generator = None
 
 def main():
+	global generator
+	generator = Generator(OPTS.weights_file, OPTS.id2token_file)
+
+	PostingRunner().start()
+
 	selected_threads = select_threads(
 			OPTS.board,
-			OPTS.max_select_threads,
+			OPTS.max_threads,
 			OPTS.min_thread_len,
 			OPTS.min_oppost_len,
 			OPTS.max_oppost_len)
-	seeds = []
-	for i, thread in enumerate(selected_threads):
-		seed_tokens = thread_to_seed_tokens(thread[1], OPTS.max_post_len, OPTS.last_posts_num)
-		print(len(seed_tokens))
-		seeds.append(seed_tokens)
-
-	def generated(i, gen_tokens):
-		global last_post_time
-		time_delta = time.time() - last_post_time
-		if time_delta < post_interval:
-			time.sleep(post_interval - time_delta)
-		last_post_time = time.time()
-
-		thread_id = str(selected_threads[i][0])
-		thread = threading.Thread(
-				name=thread_id,
-				daemon=True,
-				target=post,
-				args=(gen_tokens, thread_id))
-		thread.start()
-
-	generate(OPTS.weights_file, OPTS.id2token_file,
-			seeds,
-			min_res_len=3, max_res_len=30,
-			callback=generated)
+	produce_comments(selected_threads)
 
 	while True:
 		time.sleep(1)
 
 
-def post(gen_tokens, thread_id):
-	thread_url = 'https://2ch.hk/%s/res/%s.html' % (OPTS.board, thread_id)
-	comment = '>>%s' % (thread_id,) \
-			+ '\n' \
-			+ tokens_to_string(gen_tokens)
-	print('')
-	print(comment)
-	response = requests.post(
-			OPTS.post_url,
-			files={
-				'task': (None, 'post'),
-				'board': (None, OPTS.board),
-				'thread': (None, thread_id),
-				'comment': (None, comment),
-				'email': (None, ''),
-				'usercode': (None, OPTS.passcode),
-				'code': (None, ''),
-				'captcha_type': (None, 'invisible_recaptcha'),
-				'oekaki_image': (None, ''),
-				'oekaki_metadata': (None, ''),
-			},
-			cookies={
-				'passcode_auth': OPTS.passcode,
-			},
-			headers={
-				'Accept': 'application/json',
-				'Cache-Control': 'no-cache',
-				'Referer': thread_url,
-				'Host': '2ch.hk',
-				'Origin': 'https://2ch.hk',
-				'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.170 Safari/537.36',
-			})
-	print(response.json())
-	if not response.json()['Error']:
-		post_id = str(response.json()['Num'])
-		print(thread_url + '#' + str(post_id))
-		watch_for_replies(post_id, thread_id, OPTS.board, comment, 120)
+def produce_comments(threads, reply_to=None):
+	seeds = []
+	for thread in threads:
+		posts = thread[1]
+		seed_tokens = thread_to_seed_tokens(posts, OPTS.max_post_len, OPTS.use_posts)
+		print(len(seed_tokens))
+		seeds.append(seed_tokens)
 
-def watch_for_replies(post_id, thread_id, board, comment, interval):
-	seen = set()
-	while True:
-		time.sleep(interval)
-		replies = []
-		try:
-			replies = check_replies(post_id, thread_id, board)
-		except urllib.error.HTTPError as err:
-			print('HTTPError:', err.code, err.reason)
-			print('watchers left:', threading.active_count() - 2)
-			break
-		except Exception as err:
-			print(err)
-		for reply in replies:
-			if reply.id not in seen:
-				seen.add(reply.id)
+	def generated(i, gen_tokens):
+		comment = tokens_to_string(gen_tokens)
+		thread_id = threads[i][0]
+		posting_queue.put((
+			comment,
+			thread_id,
+			reply_to if reply_to else thread_id))
+
+	generator.generate(
+			seeds,
+			min_res_len=3, max_res_len=OPTS.max_res_len,
+			callback=generated)
+
+
+class PostingRunner(threading.Thread):
+	def __init__(self):
+		super().__init__(name='poster', daemon=True)
+		self._last_post_time = 0
+
+	def run(self):
+		while True:
+			# with lpt_lock:
+			time_delta = time.time() - self._last_post_time
+			print(time.time(), round(time_delta))
+			if time_delta < OPTS.post_interval:
+				time.sleep(OPTS.post_interval - time_delta)
+
+			comment, thread_id, reply_to = posting_queue.get()
+			Poster(comment, reply_to, thread_id).start()
+
+			self._last_post_time = time.time()
+
+
+class Poster(threading.Thread):
+	def __init__(self, comment, reply_to, thread_id):
+		super().__init__(name=thread_id, daemon=True)
+		self._thread_url = 'https://2ch.hk/%s/res/%s.html' % (OPTS.board, thread_id)
+		self._comment = ('>>%s' % reply_to) \
+				+ '\n' \
+				+ comment
+		self._thread_id = thread_id
+		self._stopped = False
+
+	def run(self):
+		response = self._post()
+		print('')
+		print(self._comment)
+		print(response)
+		if not response['Error']:
+			post_id = str(response['Num'])
+			print(self._thread_url + '#' + post_id)
+			self._watch_for_replies(post_id)
+
+	def _post(self):
+		response = requests.post(
+				OPTS.post_url,
+				files={
+					'task': (None, 'post'),
+					'board': (None, OPTS.board),
+					'thread': (None, self._thread_id),
+					'comment': (None, self._comment),
+					'email': (None, ''),
+					'usercode': (None, OPTS.passcode),
+					'code': (None, ''),
+					'captcha_type': (None, 'invisible_recaptcha'),
+					'oekaki_image': (None, ''),
+					'oekaki_metadata': (None, ''),
+				},
+				cookies={
+					'passcode_auth': OPTS.passcode,
+				},
+				headers={
+					'Accept': 'application/json',
+					'Cache-Control': 'no-cache',
+					'Referer': self._thread_url,
+					'Host': '2ch.hk',
+					'Origin': 'https://2ch.hk',
+					'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.170 Safari/537.36',
+				})
+		return response.json()
+
+	def _watch_for_replies(self, post_id):
+		seen = set()
+		while not self._stopped:
+			self._sleep()
+
+			replies = []
+			try:
+				replies = self._get_replies(post_id)
+			except urllib.error.HTTPError as err:
 				print('')
-				print('NEW REPLY')
-				print(comment)
-				print('>>>>>>', reply.comment)
-				print('https://2ch.hk/%s/res/%s.html#%s'
-						% (board, thread_id, post_id))
+				print('HTTPError:', err.code, err.reason)
 
-def check_replies(post_id, thread_id, board):
-	posts = get_thread_posts(board, thread_id, set())
-	replies = []
-	for post in posts:
-		if post_id in post.reply_to:
-			replies.append(post)
-	return replies
+				n_left = threading.active_count() - 3
+				print('watchers left:', n_left)
+				if n_left == 0:
+					sys.exit(0)
+
+				break
+			except Exception as err:
+				print('')
+				print(err)
+
+			for reply in replies:
+				if reply.id not in seen:
+					seen.add(reply.id)
+
+					print('')
+					print('============== NEW REPLY ==============')
+					print(self._comment)
+					print('>>>', reply.comment)
+					print('https://2ch.hk/%s/res/%s.html#%s'
+							% (OPTS.board, self._thread_id, post_id))
+
+					self._reply(reply)
+
+	def _sleep(self):
+		time.sleep(OPTS.watch_interval)
+
+	def _get_replies(self, post_id):
+		posts = get_thread_posts(OPTS.board, self._thread_id, set())
+		replies = []
+		for post in posts:
+			if post_id in post.reply_to:
+				replies.append(post)
+		return replies
+
+	def _reply(self, reply):
+		posts = get_thread_posts(OPTS.board, self._thread_id, set())
+		threads = [(self._thread_id, posts),]
+		produce_comments(threads, reply.id)
+		# TODO: Consider this reply comment
 
 
-def select_threads(board, max_selected_threads, min_thread_len,
+def select_threads(board, max_threads, min_thread_len,
 		min_oppost_len, max_oppost_len):
 	# TODO: refactor: parse_utils
 	threads = get_threads(board)
@@ -132,6 +186,7 @@ def select_threads(board, max_selected_threads, min_thread_len,
 		posts = get_thread_posts(board, thread_id, set())
 		if not posts:
 			continue
+
 		thread_len = len(''.join([post.comment for post in posts]))
 		oppost_len = len(posts[0].comment)
 		num_posts = len(posts)
@@ -140,21 +195,26 @@ def select_threads(board, max_selected_threads, min_thread_len,
 				and oppost_len <= max_oppost_len \
 				and num_posts >= 3:
 			selected_threads.append((thread_id, posts))
-			if len(selected_threads) == max_selected_threads:
+
+			if len(selected_threads) == max_threads:
 				break
+
 	return selected_threads
 
-def thread_to_seed_tokens(thread_posts, max_post_len, last_posts_num):
+def thread_to_seed_tokens(thread_posts, max_post_len, use_posts):
 	comments = [post.comment for post in thread_posts]
+
 	seed = ''
 	seed += comments[0] + '\n\n'
-	if last_posts_num > 0:
+
+	if use_posts > 0:
 		comments = list(filter(
 				lambda c: len(c) <= max_post_len,
 				comments[1:]))
-		last_comments = comments[-last_posts_num:]
+		last_comments = comments[-use_posts:]
 		for comment in last_comments:
 			seed += comment + '\n\n'
+
 	seed_tokens = thread_to_tokens(seed)
 	return seed_tokens
 
@@ -201,12 +261,22 @@ if __name__ == '__main__':
 			type=str,
 			default='https://2ch.hk/makaba/posting.fcgi?json=1')
 	parser.add_argument(
+			'--post_interval',
+			type=int,
+			default=25,
+			help='Interval between posting new comments (seconds)')
+	parser.add_argument(
 			'--passcode',
 			type=str,
 			default='dde373b2902b3fe0442444ddfc737aeccc9d6ee0bc581ea4d965628495848cb3')
+	parser.add_argument(
+			'--watch_interval',
+			type=int,
+			default=120,
+			help='Interval for polling new replies (seconds)')
 
 	parser.add_argument(
-			'--max_select_threads',
+			'--max_threads',
 			type=int,
 			default=30,
 			help='Max amount of threads to post')
@@ -225,6 +295,12 @@ if __name__ == '__main__':
 			type=int,
 			default=2000,
 			help='Max OP post len (chars)')
+
+	parser.add_argument(
+			'--use_posts',
+			type=int,
+			default=3,
+			help='How many comments to use to create seed sequence')
 	parser.add_argument(
 			'--max_post_len',
 			type=int,
@@ -232,10 +308,11 @@ if __name__ == '__main__':
 			help='Max post len (chars)')
 
 	parser.add_argument(
-			'--last_posts_num',
+			'--max_res_len',
 			type=int,
-			default=3,
-			help='How many comments to use to create seed sequence')
+			default=30,
+			help='Max len of generated response (words)')
+
 	OPTS = parser.parse_args()
 
 	main()
