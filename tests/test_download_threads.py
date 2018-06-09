@@ -6,9 +6,6 @@ from download_threads import \
 import json
 
 class TestDownloadThreads:
-	def setup(self):
-		print('')
-
 	def test_parse_post_html(self):
 		with open('./tests/thread.json', 'rb') as f:
 			posts = json.loads(f.read().decode('utf-8'))['threads'][0]['posts']

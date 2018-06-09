@@ -1,15 +1,18 @@
+import time
+
 import pytest
 import json
 import re
+
+import requests
+
 import download_threads
-from autoposter import select_threads, thread_to_seed_tokens, check_replies
+import autoposter
+from autoposter import select_threads, thread_to_seed_tokens, Poster
 
 class TestAutoposter:
-	def setup(self):
-		print('')
-
 	@pytest.fixture()
-	def stub_request_for_select(self, monkeypatch):
+	def fake_request_for_select(self, monkeypatch):
 		def request_json_fake(url):
 			if url.endswith('threads.json'):
 				return json.dumps({
@@ -29,16 +32,17 @@ class TestAutoposter:
 			return json.dumps(thread, ensure_ascii=False)
 		monkeypatch.setattr(download_threads, 'request_json', request_json_fake)
 
-	def test_select_threads(self, stub_request_for_select):
+	def test_select_threads(self, fake_request_for_select):
 		threads = select_threads('b', 30, 1000, 50, 2000)
 		assert(len(threads) == 3)
+		assert(threads[0][0] == '0')
 		assert(len(threads[0][1]) == 20)
 		assert(threads[0][1][0].comment.startswith('Двач, помоги. Заебали соседи.'))
 		assert(len(threads[1][1]) == 20)
 		assert(threads[1][1][0].comment.startswith('Нет, не знаю, к сожалению.'))
 		assert(len(threads[2][1]) == 19)
 
-	def test_thread_to_seed_tokens(self, stub_request_for_select):
+	def test_thread_to_seed_tokens(self, fake_request_for_select):
 		threads = select_threads('b', 30, 1000, 50, 2000)
 		seed = thread_to_seed_tokens(threads[0][1], 1000, 3)
 		assert(len(seed) > 10)
@@ -46,15 +50,90 @@ class TestAutoposter:
 				'.', 'мало', 'того', ','])
 
 
+	@pytest.fixture(autouse=True)
+	def fake_opts(self, monkeypatch ):
+		monkeypatch.setattr(autoposter, 'OPTS', OptsFake())
+
 	@pytest.fixture()
-	def stub_request_for_replies(self, monkeypatch):
+	def poster(self, monkeypatch):
+		monkeypatch.setattr(autoposter, 'generator', GeneratorFake())
+
+		poster = Poster('some comment', '111', '222')
+
+		self._posted_id = 123
+		def post_fake(*args, **kwargs):
+			print(args, kwargs)
+			return {'Num': self._posted_id, 'Error': None, 'Status': 'OK'}
+		monkeypatch.setattr(poster, '_post', post_fake)
+
+		def sleep_fake():
+			pass
+		monkeypatch.setattr(poster, '_sleep', sleep_fake)
+
+		return poster
+
+	@pytest.fixture()
+	def fake_request_for_replies(self, monkeypatch):
 		def request_json_fake(url):
 			with open('./tests/thread.json', 'rb') as f:
 				return f.read().decode('utf-8')
 		monkeypatch.setattr(download_threads, 'request_json', request_json_fake)
 
-	def test_check_replies(self, stub_request_for_replies):
-		replies = check_replies('175407040', '123', 'b')
-		print(replies)
-		assert(len(replies) == 3)
-		assert(replies[0].id == '175407182')
+	def test_poster(self, poster, fake_request_for_replies, capsys):
+		poster.start()
+		time.sleep(0.1)
+		poster._stopped = True
+
+		out = capsys.readouterr().out
+		assert(out.endswith('/b/res/222.html#123\n'))
+
+		err = capsys.readouterr().err
+		assert(err == '')
+
+	def test_poster_got_reply(self, poster, fake_request_for_replies, capsys):
+		self._posted_id = 175409951
+
+		poster.start()
+		time.sleep(0.1)
+		poster._stopped = True
+
+		out = capsys.readouterr().out.split('\n')
+		assert('============== NEW REPLY ==============' in out)
+		assert('>>> Какаю бабочками, писаю радугой. Ты просто за ручку не держался, поэтому не в курсе.' in out)
+
+		err = capsys.readouterr().err
+		assert(err == '')
+
+	def test_poster_reply_to_reply(self, poster, fake_request_for_replies, capsys):
+		self._posted_id = 175409951
+
+		poster.start()
+		time.sleep(0.1)
+		poster._stopped = True
+
+		assert(autoposter.posting_queue.get() == ('new generated reply', '222', '175410055'))
+
+		err = capsys.readouterr().err
+		assert(err == '')
+
+
+class OptsFake():
+	board = 'b'
+	post_url = ''
+	post_interval = 25
+	passcode = ''
+	watch_interval = 1
+
+	max_threads = 30
+	min_thread_len = 1000
+	min_oppost_len = 50
+	max_oppost_len = 2000
+
+	use_posts = 3
+	max_post_len = 1000
+	max_res_len = 20
+
+
+class GeneratorFake:
+	def generate(self, seeds, min_res_len=3, max_res_len=20, callback=None):
+		callback(0, ['new', 'generated', 'reply'])
