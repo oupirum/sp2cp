@@ -1,4 +1,5 @@
 dataset/threads/*.txt
+dataset/parsed/
 **/__pycache__/
 .idea/
 .pytest_cache/
