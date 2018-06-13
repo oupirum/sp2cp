@@ -7,7 +7,7 @@
 Бот с нейросетью, обучающейся генерировать комментарии на датасете из тредов с 2ch.hk
 
 ---
-#### Download dataset
+#### Collect dataset
 ```
 python3 ./download_threads.py --board=b
 ```
