@@ -267,7 +267,7 @@ if __name__ == '__main__':
 	parser.add_argument(
 			'--passcode',
 			type=str,
-			default='dde373b2902b3fe0442444ddfc737aeccc9d6ee0bc581ea4d965628495848cb3')
+			required=True)
 	parser.add_argument(
 			'--watch_interval',
 			type=int,
