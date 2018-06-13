@@ -1,11 +1,7 @@
 import time
-
 import pytest
 import json
 import re
-
-import requests
-
 import download_threads
 import autoposter
 from autoposter import select_threads, thread_to_seed_tokens, Poster

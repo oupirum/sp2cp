@@ -4,7 +4,6 @@ import numpy as np
 from model import create_model
 from parse_dataset import parse_threads, filter_short_threads, \
 		split_to_line_sequences
-from tensorflow.python.keras import backend as backend
 
 def main():
 	threads = parse_threads(OPTS.test_data_dir)
@@ -42,7 +41,6 @@ class Generator:
 				print(' '.join(seed_tokens))
 				print('>>>>>>', ' '.join(res_tokens))
 
-		# backend.clear_session()
 		return results
 
 	def _load_model(self, weights_file, id2token_file):

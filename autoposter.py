@@ -1,5 +1,6 @@
 import argparse
-import sys
+import os
+import signal
 import urllib.error
 from download_threads import get_threads, get_thread_posts
 from generate import Generator
@@ -12,7 +13,6 @@ import threading
 import queue
 
 OPTS = None
-# lpt_lock = threading.Lock()
 posting_queue = queue.Queue()
 generator = None
 
@@ -48,7 +48,8 @@ def produce_comments(threads, reply_to=None):
 		posting_queue.put((
 			comment,
 			thread_id,
-			reply_to if reply_to else thread_id))
+			reply_to if reply_to else thread_id
+		))
 
 	generator.generate(
 			seeds,
@@ -63,9 +64,7 @@ class PostingRunner(threading.Thread):
 
 	def run(self):
 		while True:
-			# with lpt_lock:
 			time_delta = time.time() - self._last_post_time
-			print(time.time(), round(time_delta))
 			if time_delta < OPTS.post_interval:
 				time.sleep(OPTS.post_interval - time_delta)
 
@@ -138,7 +137,7 @@ class Poster(threading.Thread):
 				n_left = threading.active_count() - 3
 				print('watchers left:', n_left)
 				if n_left == 0:
-					sys.exit(0)
+					os.kill(os.getpid(), signal.SIGINT)
 
 				break
 			except Exception as err:
