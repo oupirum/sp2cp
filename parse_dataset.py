@@ -356,7 +356,7 @@ if __name__ == '__main__':
 	parser.add_argument(
 			'--split',
 			type=str,
-			default='line',
+			default='plain',
 			help='How to split dataset to sequences: "line", "comment" or "plain"')
 	parser.add_argument(
 			'--sequence_len',
