@@ -51,6 +51,7 @@ def main():
 	model.fit(
 			x=x, y=y,
 			epochs=OPTS.epochs,
+			initial_epoch=OPTS.initial_epoch,
 			batch_size=OPTS.batch_size,
 			callbacks=[save_step_callback, ckpt_callback],
 			shuffle=True)
@@ -97,6 +98,10 @@ if __name__ == '__main__':
 			'--epochs',
 			type=int,
 			default=20)
+	parser.add_argument(
+			'--initial_epoch',
+			type=int,
+			default=0)
 	parser.add_argument(
 			'--batch_size',
 			type=int,
