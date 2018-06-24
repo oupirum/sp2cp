@@ -9,7 +9,7 @@
 ---
 #### Collect dataset
 ```
-python3 ./download_threads.py --board=b
+python3 ./grub_threads.py --board=b
 ```
 
 ---
