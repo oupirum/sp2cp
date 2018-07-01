@@ -2,7 +2,7 @@ import argparse
 import os
 import signal
 import urllib.error
-from download_threads import get_threads, get_thread_posts
+from grub_threads import get_threads, get_thread_posts
 from generate import Generator
 from parse_dataset import thread_to_tokens
 import requests

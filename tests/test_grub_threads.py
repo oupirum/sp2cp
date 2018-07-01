@@ -1,5 +1,5 @@
-import download_threads
-from download_threads import \
+import grub_threads
+from grub_threads import \
 		parse_post_html, \
 		get_threads, \
 		get_thread_posts
@@ -26,7 +26,7 @@ class TestDownloadThreads:
 		def request_fake(url):
 			with open('./tests/threads.json', 'rb') as f:
 				return f.read().decode('utf-8')
-		monkeypatch.setattr(download_threads, 'request_json', request_fake)
+		monkeypatch.setattr(grub_threads, 'request_json', request_fake)
 
 		threads = get_threads('b')
 
@@ -37,7 +37,7 @@ class TestDownloadThreads:
 		def request_fake(url):
 			with open('./tests/thread.json', 'rb') as f:
 				return f.read().decode('utf-8')
-		monkeypatch.setattr(download_threads, 'request_json', request_fake)
+		monkeypatch.setattr(grub_threads, 'request_json', request_fake)
 
 		posts = get_thread_posts('b', '123', set())
 

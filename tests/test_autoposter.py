@@ -2,7 +2,7 @@ import time
 import pytest
 import json
 import re
-import download_threads
+import grub_threads
 import autoposter
 from autoposter import select_threads, thread_to_seed_tokens, Poster
 
@@ -26,7 +26,7 @@ class TestAutoposter:
 			posts = thread['threads'][0]['posts']
 			thread['threads'][0]['posts'] = posts[i*20:i*20+20]
 			return json.dumps(thread, ensure_ascii=False)
-		monkeypatch.setattr(download_threads, 'request_json', request_json_fake)
+		monkeypatch.setattr(grub_threads, 'request_json', request_json_fake)
 
 	def test_select_threads(self, fake_request_for_select):
 		threads = select_threads('b', 30, 1000, 50, 2000)
@@ -73,7 +73,7 @@ class TestAutoposter:
 		def request_json_fake(url):
 			with open('./tests/thread.json', 'rb') as f:
 				return f.read().decode('utf-8')
-		monkeypatch.setattr(download_threads, 'request_json', request_json_fake)
+		monkeypatch.setattr(grub_threads, 'request_json', request_json_fake)
 
 	def test_poster(self, poster, fake_request_for_replies, capsys):
 		poster.start()
