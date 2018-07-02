@@ -28,31 +28,33 @@ def main():
 			OPTS.min_thread_len,
 			OPTS.min_oppost_len,
 			OPTS.max_oppost_len)
-	produce_comments(selected_threads)
+	for thread in selected_threads:
+		produce_comment(thread)
 
 	while True:
 		time.sleep(1)
 
 
-def produce_comments(threads, reply_to=None):
-	seeds = []
-	for thread in threads:
-		posts = thread[1]
-		seed_tokens = thread_to_seed_tokens(posts, OPTS.max_post_len, OPTS.use_posts)
-		print(len(seed_tokens))
-		seeds.append(seed_tokens)
+def produce_comment(thread, reply_to=None):
+	thread_id, posts = thread
+
+	tail = []
+	if reply_to:
+		tail.append(reply_to.comment)
+
+	seed_tokens = thread_to_seed_tokens(posts, OPTS.max_post_len, OPTS.use_posts, tail)
+	print(len(seed_tokens))
 
 	def generated(i, gen_tokens):
 		comment = tokens_to_string(gen_tokens)
-		thread_id = threads[i][0]
 		posting_queue.put((
 			comment,
 			thread_id,
-			reply_to if reply_to else thread_id
+			reply_to.id if reply_to else thread_id
 		))
 
 	generator.generate(
-			seeds,
+			(seed_tokens,),
 			min_res_len=3, max_res_len=OPTS.max_res_len,
 			callback=generated)
 
@@ -96,6 +98,7 @@ class Poster(threading.Thread):
 			self._watch_for_replies(post_id)
 
 	def _post(self):
+		# TODO: attach random pic
 		response = requests.post(
 				OPTS.post_url,
 				files={
@@ -171,14 +174,12 @@ class Poster(threading.Thread):
 
 	def _reply(self, reply):
 		posts = get_thread_posts(OPTS.board, self._thread_id, set())
-		threads = [(self._thread_id, posts),]
-		produce_comments(threads, reply.id)
-		# TODO: Consider this reply comment
+		thread = (self._thread_id, posts)
+		produce_comment(thread, reply)
 
 
 def select_threads(board, max_threads, min_thread_len,
 		min_oppost_len, max_oppost_len):
-	# TODO: refactor: parse_utils
 	threads = get_threads(board)
 
 	selected_threads = []
@@ -201,7 +202,7 @@ def select_threads(board, max_threads, min_thread_len,
 
 	return selected_threads
 
-def thread_to_seed_tokens(thread_posts, max_post_len, use_posts):
+def thread_to_seed_tokens(thread_posts, max_post_len, use_posts, tail=()):
 	comments = [post.comment for post in thread_posts]
 
 	seed = ''
@@ -214,6 +215,9 @@ def thread_to_seed_tokens(thread_posts, max_post_len, use_posts):
 		last_comments = comments[-use_posts:]
 		for comment in last_comments:
 			seed += comment + '\n\n'
+
+	for comment in tail:
+		seed += comment + '\n\n'
 
 	seed_tokens = thread_to_tokens(seed)
 	return seed_tokens
@@ -232,7 +236,7 @@ def tokens_to_string(tokens):
 		if token in ['<eoc>', '<pad>', '<unk>']:
 			tokens[i] = ''
 		if token == '<n>':
-			tokens[i] = str(random.randrange(1, 101, 1))
+			tokens[i] = str(random.randrange(0, 101, 1))
 
 	res = ' '.join(tokens)
 	res = re.sub(' ([.,:?)!;])', '\\1', res)
@@ -299,7 +303,7 @@ if __name__ == '__main__':
 	parser.add_argument(
 			'--use_posts',
 			type=int,
-			default=3,
+			default=0,
 			help='How many comments to use to create seed sequence')
 	parser.add_argument(
 			'--max_post_len',
