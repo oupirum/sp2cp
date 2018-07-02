@@ -5,7 +5,7 @@ from grub_threads import \
 		get_thread_posts
 import json
 
-class TestDownloadThreads:
+class TestGrubThreads:
 	def test_parse_post_html(self):
 		with open('./tests/thread.json', 'rb') as f:
 			posts = json.loads(f.read().decode('utf-8'))['threads'][0]['posts']
