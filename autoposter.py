@@ -87,9 +87,10 @@ class Poster(threading.Thread):
 	def run(self):
 		response = self._post()
 		print('')
-		print(self._comment)
-		print(response)
-		if not response['Error']:
+		if response['Error']:
+			print(response)
+		else:
+			print(self._comment)
 			post_id = str(response['Num'])
 			print(self._thread_url + '#' + post_id)
 			self._watch_for_replies(post_id)
@@ -151,7 +152,7 @@ class Poster(threading.Thread):
 					print('')
 					print('============== NEW REPLY ==============')
 					print(self._comment)
-					print('>>>', reply.comment)
+					print('->', reply.comment)
 					print('https://2ch.hk/%s/res/%s.html#%s'
 							% (OPTS.board, self._thread_id, post_id))
 
