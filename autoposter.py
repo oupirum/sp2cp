@@ -11,6 +11,7 @@ import random
 import re
 import threading
 import queue
+from transliterate import translit
 
 OPTS = None
 posting_queue = queue.Queue()
@@ -47,8 +48,12 @@ def produce_comment(thread, reply_to=None):
 
 	def generated(i, gen_tokens):
 		comment = tokens_to_string(gen_tokens)
+		pic_file = None
+		if OPTS.pics_dir:
+			pic_file = select_random_pic(OPTS.pics_dir)
 		posting_queue.put((
 			comment,
+			pic_file,
 			thread_id,
 			reply_to.id if reply_to else thread_id
 		))
@@ -70,19 +75,20 @@ class PostingRunner(threading.Thread):
 			if time_delta < OPTS.post_interval:
 				time.sleep(OPTS.post_interval - time_delta)
 
-			comment, thread_id, reply_to = posting_queue.get()
-			Poster(comment, reply_to, thread_id).start()
+			comment, pic_file, thread_id, reply_to = posting_queue.get()
+			Poster(comment, pic_file, reply_to, thread_id).start()
 
 			self._last_post_time = time.time()
 
 
 class Poster(threading.Thread):
-	def __init__(self, comment, reply_to, thread_id):
+	def __init__(self, comment, pic_file, reply_to, thread_id):
 		super().__init__(name=thread_id, daemon=True)
 		self._thread_url = 'https://2ch.hk/%s/res/%s.html' % (OPTS.board, thread_id)
 		self._comment = ('>>%s' % reply_to) \
 				+ '\n' \
 				+ comment
+		self._pic_file = pic_file
 		self._thread_id = thread_id
 		self._stopped = False
 
@@ -93,26 +99,33 @@ class Poster(threading.Thread):
 			print(response)
 		else:
 			print(self._comment)
+			if self._pic_file:
+				print(os.path.basename(self._pic_file))
 			post_id = str(response['Num'])
 			print(self._thread_url + '#' + post_id)
 			self._watch_for_replies(post_id)
 
 	def _post(self):
-		# TODO: attach random pic
+		formdata = {
+			'task': (None, 'post'),
+			'board': (None, OPTS.board),
+			'thread': (None, self._thread_id),
+			'comment': (None, self._comment),
+			'email': (None, ''),
+			'usercode': (None, OPTS.passcode),
+			'code': (None, ''),
+			'captcha_type': (None, 'invisible_recaptcha'),
+			'oekaki_image': (None, ''),
+			'oekaki_metadata': (None, ''),
+		}
+
+		if self._pic_file:
+			pic_name = translit(os.path.basename(self._pic_file), 'ru', reversed=True)
+			formdata['formimages[]'] = (pic_name, open(self._pic_file, 'rb'))
+
 		response = requests.post(
 				OPTS.post_url,
-				files={
-					'task': (None, 'post'),
-					'board': (None, OPTS.board),
-					'thread': (None, self._thread_id),
-					'comment': (None, self._comment),
-					'email': (None, ''),
-					'usercode': (None, OPTS.passcode),
-					'code': (None, ''),
-					'captcha_type': (None, 'invisible_recaptcha'),
-					'oekaki_image': (None, ''),
-					'oekaki_metadata': (None, ''),
-				},
+				files=formdata,
 				cookies={
 					'passcode_auth': OPTS.passcode,
 				},
@@ -245,6 +258,12 @@ def tokens_to_string(tokens):
 	return res
 
 
+def select_random_pic(dir):
+	files = os.listdir(dir)
+	file = random.choice(files)
+	return os.path.join(dir, file)
+
+
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
@@ -316,6 +335,11 @@ if __name__ == '__main__':
 			type=int,
 			default=30,
 			help='Max len of generated response (words)')
+
+	parser.add_argument(
+			'--pics_dir',
+			type=str,
+			default='')
 
 	OPTS = parser.parse_args()
 

@@ -1,3 +1,4 @@
 tensorflow
 h5py
 requests
+transliterate

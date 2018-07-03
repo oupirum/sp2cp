@@ -54,7 +54,7 @@ class TestAutoposter:
 	def poster(self, monkeypatch):
 		monkeypatch.setattr(autoposter, 'generator', GeneratorFake())
 
-		poster = Poster('some comment', '111', '222')
+		poster = Poster('some comment', None, '111', '222')
 
 		self._posted_id = 123
 		def post_fake(*args, **kwargs):
@@ -107,7 +107,7 @@ class TestAutoposter:
 		time.sleep(0.1)
 		poster._stopped = True
 
-		assert(autoposter.posting_queue.get() == ('new generated reply', '222', '175410055'))
+		assert(autoposter.posting_queue.get() == ('new generated reply', None, '222', '175410055'))
 
 		err = capsys.readouterr().err
 		assert(err == '')
@@ -128,6 +128,8 @@ class OptsFake():
 	use_posts = 3
 	max_post_len = 1000
 	max_res_len = 20
+
+	pics_dir = ''
 
 
 class GeneratorFake:
