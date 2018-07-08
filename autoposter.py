@@ -30,13 +30,13 @@ def main():
 			OPTS.min_oppost_len,
 			OPTS.max_oppost_len)
 	for thread in selected_threads:
-		produce_comment(thread)
+		produce_post(thread)
 
 	while True:
 		time.sleep(1)
 
 
-def produce_comment(thread, reply_to=None):
+def produce_post(thread, reply_to=None):
 	thread_id, posts = thread
 
 	tail = []
@@ -188,7 +188,7 @@ class Poster(threading.Thread):
 	def _reply(self, reply):
 		posts = get_thread_posts(OPTS.board, self._thread_id)
 		thread = (self._thread_id, posts)
-		produce_comment(thread, reply)
+		produce_post(thread, reply)
 
 
 def select_threads(board, max_threads, min_thread_len,

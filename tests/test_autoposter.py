@@ -7,6 +7,7 @@ import autoposter
 from autoposter import select_threads, thread_to_seed_tokens, Poster
 
 class TestAutoposter:
+
 	@pytest.fixture()
 	def fake_request_for_select(self, monkeypatch):
 		def request_json_fake(url):

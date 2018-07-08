@@ -4,6 +4,7 @@ from parse_dataset import \
 import random
 
 class TestParseDataset():
+
 	def test_process_token(self):
 		self.pt('qwe@gmail.com', ['ti.hui@i.pidor.com'])
 		self.pt('10т.р', ['<n>т.р.'])

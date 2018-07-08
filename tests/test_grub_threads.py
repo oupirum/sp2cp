@@ -7,21 +7,6 @@ from grub_threads import \
 import json
 
 class TestGrubThreads:
-	def test_parse_post_html(self):
-		with open('./tests/thread.json', 'rb') as f:
-			posts = json.loads(f.read().decode('utf-8'))['threads'][0]['posts']
-
-			comment, reply_to = parse_post_html(posts[16]['comment'])
-			assert(comment == 'Привет. Я хочу твой задний проход.')
-			assert(reply_to == ['175406614'])
-
-			comment, reply_to = parse_post_html(posts[18]['comment'])
-			assert(comment == ''
-					'> /b\n'
-					'> Помогать дыре в мясе\n'
-					'А ты смешной.')
-			assert(reply_to == [])
-
 
 	def test_get_threads(self, monkeypatch):
 		def request_fake(url):
@@ -85,3 +70,27 @@ class TestGrubThreads:
 		assert(isinstance(posts[0].id, str))
 		assert(isinstance(posts[0].comment, str))
 		assert(isinstance(posts[0].reply_to, list))
+
+
+	def test_parse_post_html(self):
+		with open('./tests/thread.json', 'rb') as f:
+			posts = json.loads(f.read().decode('utf-8'))['threads'][0]['posts']
+
+			comment, reply_to = parse_post_html(posts[18]['comment'])
+			assert(comment == ''
+					'> /b\n'
+					'> Помогать дыре в мясе\n'
+					'А ты смешной.')
+			assert(reply_to == [])
+
+	def test_parse_post_html_with_replies(self):
+		with open('./tests/thread.json', 'rb') as f:
+			posts = json.loads(f.read().decode('utf-8'))['threads'][0]['posts']
+
+			comment, reply_to = parse_post_html(posts[16]['comment'])
+			assert(comment == 'Привет. Я хочу твой задний проход.')
+			assert(reply_to == ['175406614'])
+
+			comment, reply_to = parse_post_html(posts[71]['comment'])
+			assert(comment.startswith('Дебил потралил двач.'))
+			assert(reply_to == ['175409678', '175409756', '175409770'])
