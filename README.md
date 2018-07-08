@@ -18,7 +18,7 @@ python3 ./grub_threads.py --board=b
 ---
 #### Prepare dataset for training
 ```
-python3 ./parse_dataset.py --lexicon_limit=100000 --split=plain --sequence_len=50
+python3 ./parse_dataset.py --lexicon_limit=100000 --sequence_max_len=50
 ```
 It will save tokenized dataset and id2token map in `./dataset/parsed/` directory.
 
@@ -33,6 +33,6 @@ After training you can find trained models and id2token map in `./models/` direc
 #### Run autoposter
 ```
 python3 ./autoposter.py --weights_file=./models/weights.h5 --id2token_file=./models/id2token.json \
-  --board=b --passcode=passcode --max_threads=30 --use_posts=3 \
+  --board=b --passcode=passcode --max_threads=30 \
   --max_res_len=30
 ```

@@ -7,15 +7,16 @@ import json
 import time
 import traceback
 import sys
+from filter_data import filter_data
 
 readen_post_ids = set()
 
 def main():
 	os.makedirs(OPTS.dataset_dir, exist_ok=True)
 
-	readen_post_ids_path = os.path.join(OPTS.dataset_dir, 'saved_post_ids.txt')
-	if os.path.exists(readen_post_ids_path):
-		with open(readen_post_ids_path, 'r') as f:
+	readen_post_ids_file = os.path.join(OPTS.dataset_dir, 'readen_post_ids.txt')
+	if os.path.exists(readen_post_ids_file):
+		with open(readen_post_ids_file, 'r') as f:
 			readen_post_ids.update(f.read().split('\n'))
 			print('readen_post_ids', len(readen_post_ids))
 
@@ -25,30 +26,11 @@ def main():
 			for thread_id in threads:
 				process_thread(thread_id, OPTS.board, OPTS.dataset_dir)
 		finally:
-			with open(readen_post_ids_path, 'w') as f:
+			with open(readen_post_ids_file, 'w') as f:
 				f.write('\n'.join(readen_post_ids))
 
 		print('pause...')
 		time.sleep(1800)
-
-def process_thread(thread_id, board, ds_dir):
-	try:
-		posts = get_thread_posts(board, thread_id, readen_post_ids)
-		print(len(readen_post_ids))
-		if len(posts) == 0:
-			return
-
-		with open(
-				os.path.join(ds_dir, thread_id + '.txt'),
-				'ab') as f:
-			comments = [post.comment for post in posts]
-			comments = '\n\n'.join(comments) + '\n\n'
-			f.write(comments.encode('utf-8'))
-			print(comments)
-	except KeyboardInterrupt:
-		raise
-	except:
-		print(traceback.format_exc(), thread_id)
 
 def get_threads(board):
 	json_str = request_json('https://2ch.hk/' + board + '/threads.json')
@@ -58,19 +40,46 @@ def get_threads(board):
 			threads['threads']))
 	return thread_ids
 
-def get_thread_posts(board, thread_id, readen_post_ids):
+def process_thread(thread_id, board, ds_dir):
+	try:
+		posts = get_thread_posts(board, thread_id)
+
+		for post in posts:
+			post.comment = filter_data(post.comment)
+		posts = list(filter(
+				lambda post: len(post.comment) > 1,
+				posts))
+
+		pairs = thread_posts_to_pairs(posts)
+
+		pairs = list(filter(
+				lambda pair: pair[1].id not in readen_post_ids,
+				pairs))
+		if len(pairs) == 0:
+			return
+
+		ids = [post.id for post in posts]
+		readen_post_ids.update(ids)
+		print('posts readen:', len(readen_post_ids))
+
+		with open(
+				os.path.join(ds_dir, thread_id + '.txt'),
+				'ab') as f:
+			comments = [pair[0].comment + '\n\n' + pair[1].comment for pair in pairs]
+			comments = '\n\n'.join(comments) + '\n\n'
+			f.write(comments.encode('utf-8'))
+			print(comments)
+	except KeyboardInterrupt:
+		raise
+	except:
+		print(traceback.format_exc(), thread_id)
+
+def get_thread_posts(board, thread_id):
 	json_str = request_json('https://2ch.hk/' + board + '/res/' + thread_id + '.json')
 	thread = json.loads(json_str)
 	posts = list(map(
 			lambda post: Post(str(post['num']), post['comment']),
 			thread['threads'][0]['posts']))
-
-	posts = list(filter(
-			lambda post: post.id not in readen_post_ids,
-			posts))
-	if len(posts) > 0:
-		ids = [post.id for post in posts]
-		readen_post_ids.update(ids)
 
 	for post in posts:
 		post.comment, post.reply_to = parse_post_html(post.comment)
@@ -80,6 +89,19 @@ def get_thread_posts(board, thread_id, readen_post_ids):
 			posts))
 
 	return posts
+
+def thread_posts_to_pairs(posts):
+	posts = list(filter(
+			lambda post: len(post.reply_to) <= 1,
+			posts))
+
+	map = {post.id: post for post in posts}
+	pairs = []
+	for post in posts:
+		if len(post.reply_to) == 1 and post.reply_to[0] in map:
+			pairs.append((map[post.reply_to[0]], post))
+
+	return pairs
 
 def request_json(url):
 	req = urllib.request.Request(url)
@@ -108,6 +130,9 @@ class Post:
 		self.comment = comment
 		self.reply_to = reply_to
 
+	def __repr__(self):
+		return '<Post %s %s \'%s\'>' % (self.id, self.reply_to, self.comment)
+
 
 class PostHTMLParser(HTMLParser):
 	def __init__(self):
@@ -129,9 +154,6 @@ class PostHTMLParser(HTMLParser):
 			return
 
 		data = re.sub('\s+', ' ', data)
-
-		if data.startswith('>'):
-			data = data[1:]
 
 		if len(data.strip()) < 2:
 			return

@@ -2,13 +2,24 @@ import argparse
 import json
 import numpy as np
 from model import create_model
-from parse_dataset import parse_threads, filter_short_threads, \
-		split_to_line_sequences
+from parse_dataset import parse_comment_pairs
+import os
+import re
 
 def main():
-	threads = parse_threads(OPTS.test_data_dir)
-	threads = filter_short_threads(threads, 100)
-	sequences, tokens_count = split_to_line_sequences(threads, 150, 10)
+	sequences = []
+
+	files = os.listdir(OPTS.test_data_dir)
+	files.sort()
+	for i in range(len(files)):
+		file = files[i]
+		if not re.match('\d+\.txt', file):
+			continue
+
+		with open(os.path.join(OPTS.test_data_dir, file), 'rb') as f:
+			content = f.read().decode('utf-8')
+		sequences.extend(parse_comment_pairs(content, 8, 100))
+
 	print('sequences:', len(sequences))
 	Generator(OPTS.weights_file, OPTS.id2token_file).generate(
 			sequences,

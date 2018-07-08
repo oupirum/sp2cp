@@ -1,7 +1,6 @@
 import argparse
 import json
 import os
-import random
 import re
 from collections import Counter
 
@@ -14,8 +13,8 @@ def main():
 	sequences, id2token, tokens_count = parse_dataset(
 			OPTS.dataset_dir,
 			lexicon_limit=OPTS.lexicon_limit,
-			seq_max_len=OPTS.sequence_len,
-			split=OPTS.split)
+			seq_min_len=OPTS.sequence_min_len,
+			seq_max_len=OPTS.sequence_max_len)
 
 	with open(sequences_file, 'w') as f:
 		f.write(json.dumps(sequences))
@@ -35,7 +34,7 @@ def main():
 	print('>= 3', len(list(filter(lambda tc: tc[1] >= 3, tcs))))
 	print('>= 4', len(list(filter(lambda tc: tc[1] >= 4, tcs))))
 
-def parse_dataset(ds_dir, lexicon_limit, seq_max_len=100, seq_min_len=5, split='line'):
+def parse_dataset(ds_dir, lexicon_limit, seq_min_len, seq_max_len):
 	id2token = [
 		'<pad>',
 		'<unk>',
@@ -45,18 +44,27 @@ def parse_dataset(ds_dir, lexicon_limit, seq_max_len=100, seq_min_len=5, split='
 	]
 	token2id = {v: i for i, v in enumerate(id2token)}
 
-	threads = parse_threads(ds_dir)
-	threads = filter_short_threads(threads, seq_max_len)
-	print('threads:', len(threads))
+	pairs = []
+	files = os.listdir(ds_dir)
+	files.sort()
+	for i in range(len(files)):
+		file = files[i]
+		if not re.match('\d+\.txt', file):
+			continue
 
-	if split == 'line':
-		sequences, tokens_count = split_to_line_sequences(threads, seq_max_len, seq_min_len)
-	elif split == 'comment':
-		sequences, tokens_count = split_to_comment_sequences(threads, seq_max_len, seq_min_len)
-	else:
-		sequences, tokens_count = split_to_plain_sequences(threads, seq_max_len)
-	print('sequences:', len(sequences))
+		with open(os.path.join(ds_dir, file), 'rb') as f:
+			content = f.read().decode('utf-8')
 
+		t_pairs = parse_comment_pairs(content, seq_min_len, seq_max_len)
+		pairs.extend(t_pairs)
+
+		print(i, '============================ ' + file + ' ==============================')
+		for pair in t_pairs:
+			print(' '.join(pair))
+			print('')
+	print('sequences:', len(pairs))
+
+	tokens_count = get_lexicon(pairs)
 	for tc in tokens_count.most_common(lexicon_limit):
 		token = tc[0]
 		if token not in token2id:
@@ -64,47 +72,49 @@ def parse_dataset(ds_dir, lexicon_limit, seq_max_len=100, seq_min_len=5, split='
 			token2id[token] = len(token2id)
 	print('lexicon:', len(id2token))
 
-	seqs_ids = sequences_ids(sequences, id2token)
+	pairs_ids = tokens_to_ids(pairs, id2token)
 
-	return (seqs_ids, id2token, dict(tokens_count))
+	return (pairs_ids, id2token, dict(tokens_count))
 
-def parse_threads(ds_dir):
-	threads = []
-
-	files = os.listdir(ds_dir)
-	random.shuffle(files)
-	for i in range(len(files)):
-		file = files[i]
-		if not re.match('\d+\.txt', file):
+def parse_comment_pairs(thread_content, min_len, max_len):
+	tokens = []
+	pairs = thread_to_comment_pairs(thread_content)
+	for pair in pairs:
+		if len(' '.join(pair).split(' ')) > max_len:
 			continue
+		c1 = comment_to_tokens(pair[0])
+		c2 = None
+		if c1:
+			c2 = comment_to_tokens(pair[1])
+		if c1 and c2:
+			l = len(c1) + len(c2)
+			if l >= min_len and l <= max_len:
+				pair_tokens = c1
+				pair_tokens.extend(c2)
+				tokens.append(pair_tokens)
+	return tokens
 
-		print(i, '============================ ' + file + ' ==============================')
-		with open(os.path.join(ds_dir, file), 'rb') as f:
-			content = f.read().decode('utf-8')
-		print(content.split('\n')[0])
+def thread_to_comment_pairs(thread_content):
+	pairs = []
+	comments = thread_content.split('\n\n')
+	for i in range(0, len(comments) - 1, 2):
+		pairs.append((comments[i], comments[i + 1]))
+	return pairs
 
-		thread = thread_to_tokens(content)
-		if thread:
-			threads.append(thread)
-
-	return threads
-
-def thread_to_tokens(thread_content):
-	thread_tokens = []
-	lines = thread_content.split('\n')
+def comment_to_tokens(comment):
+	tokens = []
+	lines = comment.split('\n')
 	for line in lines:
 		line = line.strip()
-		line = line.lower()
 		if line:
+			line = line.lower()
 			line_tokens = str_to_tokens(line)
 			if line_tokens:
-				for token in line_tokens:
-					thread_tokens.append(token)
-				thread_tokens.append('<eol>')
-		else:
-			if thread_tokens and thread_tokens[-1] != '<eoc>':
-				thread_tokens.append('<eoc>')
-	return thread_tokens
+				tokens.extend(line_tokens)
+				tokens.append('<eol>')
+	if tokens and tokens[-1] != '<eoc>':
+		tokens.append('<eoc>')
+	return tokens
 
 def str_to_tokens(s):
 	tokens = []
@@ -112,126 +122,83 @@ def str_to_tokens(s):
 		process_token(token, tokens)
 	return tokens
 
-def filter_short_threads(threads, min_len):
-	threads = list(filter(
-			lambda thread: len(list(filter(
-					lambda token: token == '<eoc>',
-					thread))) >= 5,
-			threads))
-	threads = list(filter(
-			lambda thread: len(thread) >= min_len,
-			threads))
-	return threads
-
-def split_to_line_sequences(threads, seq_max_len, seq_min_len):
+def get_lexicon(pairs):
 	lexicon = Counter()
+	for pair_tokens in pairs:
+		lexicon.update(pair_tokens)
+	return lexicon
 
-	sequences = []
-	for thread in threads:
-		lines = []
-		line = []
-		for token in thread:
-			if token == '<eoc>':
-				lines[-1].append(token)
-				continue
-			line.append(token)
-			if token == '<eol>':
-				lines.append(line)
-				line = []
-		seq = []
-		for line in lines:
-			if len(line) < seq_min_len:
-				continue
-			if len(seq) + len(line) > seq_max_len:
-				if seq:
-					sequences.append(seq)
-					lexicon.update(seq)
-				seq = []
-				if len(line) <= seq_max_len:
-					seq.extend(line)
-			else:
-				seq.extend(line)
-		if seq:
-			sequences.append(seq)
-			lexicon.update(seq)
-
-	return (sequences, lexicon)
-
-def split_to_comment_sequences(threads, seq_max_len, seq_min_len):
-	lexicon = Counter()
-
-	sequences = []
-	comment = []
-	for thread in threads:
-		for token in thread:
-			comment.append(token)
-			if token == '<eoc>':
-				if comment \
-						and len(comment) <= seq_max_len \
-						and len(comment) >= seq_min_len:
-					sequences.append(comment)
-					lexicon.update(comment)
-				comment = []
-
-	return (sequences, lexicon)
-
-def split_to_plain_sequences(threads, seq_len):
-	lexicon = Counter()
-
-	sequences = []
-	for thread in threads:
-		end = len(thread) - len(thread) % seq_len
-		for i in range(0, end, seq_len):
-			seq = thread[i:i+seq_len]
-			sequences.append(seq)
-			lexicon.update(seq)
-
-	return (sequences, lexicon)
-
-def sequences_ids(sequences, id2token):
+def tokens_to_ids(pairs, id2token):
 	token2id = {token: id for id, token in enumerate(id2token)}
-	seqs_ids = []
+	pairs_ids = []
 
-	for sequence in sequences:
-		seqs_ids.append(
+	for pair in pairs:
+		pairs_ids.append(
 				[token2id[token] if token in token2id else token2id['<unk>'] \
-						for token in sequence])
+						for token in pair])
 
-	return seqs_ids
+	return pairs_ids
 
 def process_token(token, tokens):
 	token = token.strip()
-	token = re.sub('^[0-9]+[).:]$', '', token)
 	if not token:
 		return False
-	if not re.search('[a-zа-яё0-9:\-()^_=]', token):
+
+	token = re.sub('^[0-9]+[).:]$', '', token)
+	token = re.sub('[\'"«»“”]+', '', token)
+	token = re.sub('(\\\\t)+', '', token)
+	token = re.sub('(\^h)+', '', token)
+	token = re.sub('</?[a-z0-9\-_.]+>', '', token)
+
+	token = token.strip()
+	if not token:
 		return False
+	if not re.search('[a-zа-яё0-9\-_–:()^=>$/]', token):
+		return False
+
+	for char in ['а', 'е', 'о', 'м', 'я', 'у', 'э', 'и', 'a', 'e', 'o']:
+		token = re.sub(re.escape(char) + '{3,}', char * 3, token)
+
+	if re.match('>+[a-zа-яё0-9$]', token):
+		tokens.append('>')
+		return process_token(re.sub('^>+', '', token), tokens)
 
 	if re.fullmatch('[a-z0-9.\-]+@[a-z0-9.\-]+', token):
 		tokens.append('ti.hui@i.pidor.com')
 		return True
-	if token == '(нет)':
+	if token.startswith('chrome://flags'):
 		tokens.append(token)
 		return True
+	if re.fullmatch('(https?://)?[a-z0-9.\-]+\.(com|net|ru|onion|org)/?[a-z0-9:/\-.?=_#]+', token):
+		tokens.append(token)
+		return True
+
 	if re.fullmatch('т\.[еодп]\.?', token):
 		tokens.append(re.sub('\.?$', '.', token))
 		return True
-	if re.fullmatch('([0-9]+-?[0-9]*)?т\.р\.?', token):
+	if re.fullmatch('([0-9]+-?)*т\.р\.?', token):
 		if re.match('[0-9]', token):
 			tokens.append('<n>т.р.')
 		else:
 			tokens.append('т.р.')
 		return True
-	if re.fullmatch('[0-9]+-(ой|ая|ый|й|я|х)', token):
-		tokens.append(re.sub('^[0-9]+-(ой|ая|ый|й|я|х|м|му)$', '<n>-\\1', token))
+	if token == '9000':
+		tokens.append(token)
 		return True
-	if re.fullmatch('[0-9]+([\-+.]+[0-9]+)*[a-zа-яё]*', token):
+	if re.fullmatch('[0-9]+([\-+.]+[0-9]+)*', token):
 		tokens.append('<n>')
 		return True
+	if re.match('[0-9]+([\-+.]+[0-9]+)*[\-/$]*[a-zа-яё]+', token):
+		tokens.append('<n>')
+		token = re.sub('^[0-9]+([\-+.]+[0-9]+)*', '', token)
+		sts = re.sub('^(-?)(\$?)(/?)', '\\1 \\2 \\3 ', token).split(' ')
+		for st in sts:
+			process_token(st, tokens)
+		return True
 
-	token = re.sub('[\'"«»“”]+', '', token)
-	token = re.sub('(\\\\t)+', '', token)
-	token = re.sub('</?[a-z]+>', '', token)
+	if token == '(нет)':
+		tokens.append(token)
+		return True
 
 	if re.fullmatch('.*?:\)+', token):
 		process_token(re.sub(':\)+$', '', token), tokens)
@@ -258,52 +225,66 @@ def process_token(token, tokens):
 		tokens.append('^_^')
 		return True
 
+	if re.fullmatch('[a-zа-яё]+', token):
+		tokens.append(token)
+		return True
+
 	if re.fullmatch('.*?\)+0+[)0]*', token):
 		process_token(re.sub('\)+0+[)0]*$', '', token), tokens)
 		tokens.append('))0')
 		return True
-
 	if re.fullmatch('.*?\(+9+[(9]*', token):
 		process_token(re.sub('\(+9+[(9]*$', '', token), tokens)
 		tokens.append('((9')
 		return True
-
-	if re.fullmatch('.*?!+1+[!1]*', token):
-		process_token(re.sub('!+1+[!1]*$', '', token), tokens)
+	if re.fullmatch('.*?!*1+[!1]+', token):
+		process_token(re.sub('!*1+[!1]+$', '', token), tokens)
 		tokens.append('!!11')
 		return True
-
 	if re.fullmatch('.*?([a-zа-яё])1{3,}', token):
 		process_token(re.sub('1{3,}$', '', token), tokens)
 		tokens.append('111')
+		return True
+	if re.fullmatch('.*?((\?+)?(!+\?+)+)', token):
+		process_token(re.sub('(\?+)?(!+\?+)+$', '', token), tokens)
+		tokens.append('!?')
+		return True
+
+	if re.fullmatch('[a-zа-яё0-9]+', token):
+		tokens.append(token)
 		return True
 
 	if re.search('-+>+', token):
 		sts = re.split('-+>+', token)
 		for i, st in enumerate(sts):
-			if process_token(st, tokens) and i < len(sts) - 1:
+			process_token(st, tokens)
+			if i < len(sts) - 1:
 				tokens.append('->')
 		return True
 
-	for char in ['.', ',', '!', '?', '(', ')']:
+	token = re.sub('-{2,}', '–', token)
+
+	for char in ['.', ',', '!', '?', '(', ')', '-', '_', '+']:
 		if re.fullmatch('.*?' + re.escape(char) + '{2,}', token):
 			process_token(re.sub(re.escape(char) + '{2,}$', '', token), tokens)
 			tokens.append(char * 3)
 			return True
+	for char in ['.', ',', '!', '?', '(', ')', '-', '_', '+']:
+		if re.fullmatch(re.escape(char) + '{2,}.*?', token):
+			tokens.append(char * 3)
+			return process_token(re.sub('^' + re.escape(char) + '{2,}', '', token), tokens)
 
 	for char in ['.', ',', '!', '?', ':', ';', '-', '–', '*', '=', '~', '$']:
 		if re.fullmatch('.*?' + re.escape(char), token):
 			process_token(re.sub(re.escape(char) + '$', '', token), tokens)
 			tokens.append(char)
 			return True
-
 	for char in ['.', ',', '!', '?', ':', ';', '-', '–', '*', '=', '~', '$']:
 		if re.fullmatch(re.escape(char) + '.*', token):
 			tokens.append(char)
-			process_token(re.sub('^' + re.escape(char), '', token), tokens)
-			return True
+			return process_token(re.sub('^' + re.escape(char), '', token), tokens)
 
-	for char in ['.', ',', '!', '?', ':', ';', '+', '*', '=']:
+	for char in ['.', ',', '!', '?', ':', ';', '+', '*', '=', '–']:
 		if re.search(re.escape(char), token):
 			sts = re.split(re.escape(char), token)
 			for i, st in enumerate(sts):
@@ -311,27 +292,27 @@ def process_token(token, tokens):
 					tokens.append(char)
 			return True
 
-	if re.fullmatch('\(([a-zа-яё0-9]).*', token):
-		process_token(re.sub('^\(', '', token), tokens)
+	if re.search('[a-zа-яё$]+/[a-zа-яё]+', token):
+		sts = token.split('/')
+		for i, st in enumerate(sts):
+			if process_token(st, tokens) and i < len(sts) - 1:
+				tokens.append('/')
 		return True
-	if re.fullmatch('.*?([a-zа-яё0-9])\)', token):
-		process_token(re.sub('\)$', '', token), tokens)
-		return True
+
+	if re.fullmatch('[(\[\]][a-zа-яё0-9].*', token):
+		return process_token(re.sub('^[(\[\]]', '', token), tokens)
+	if re.fullmatch('.*?[a-zа-яё0-9][)\[\]]', token):
+		return process_token(re.sub('[)\[\]]$', '', token), tokens)
 
 	if re.search('[()]', token):
 		for st in re.split('[()]', token):
 			process_token(st, tokens)
 		return True
 
-	if re.fullmatch('>+([a-zа-яё0-9]).*', token):
-		tokens.append('>')
-		process_token(re.sub('^>+', '', token), tokens)
-		return True
-
-	if re.search('([.,!?;])-', token):
-		sws = re.sub('([a-zа-яё0-9])([.,!?;])-([a-zа-яё0-9])', '\\1 \\2 - \\3', token)
-		for sw in sws:
-			process_token(sw, tokens)
+	if re.search('[.,!?;]-', token):
+		sts = re.sub('([a-zа-яё0-9])([.,!?;])-([a-zа-яё0-9])', '\\1 \\2 - \\3', token).split(' ')
+		for st in sts:
+			process_token(st, tokens)
 		return True
 
 	tokens.append(token)
@@ -354,15 +335,15 @@ if __name__ == '__main__':
 			required=True,
 			help='How many most often words use to train (others will be unknown)')
 	parser.add_argument(
-			'--split',
-			type=str,
-			default='plain',
-			help='How to split dataset to sequences: "line", "comment" or "plain"')
+			'--sequence_min_len',
+			type=int,
+			default=8,
+			help="Min length of the pair of comments (words)")
 	parser.add_argument(
-			'--sequence_len',
+			'--sequence_max_len',
 			type=int,
 			default=100,
-			help="Max length of the sequence")
+			help="Max length of the pair of comments (words)")
 	OPTS = parser.parse_args()
 
 	main()

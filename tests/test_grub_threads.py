@@ -2,7 +2,8 @@ import grub_threads
 from grub_threads import \
 		parse_post_html, \
 		get_threads, \
-		get_thread_posts
+		get_thread_posts, \
+		thread_posts_to_pairs
 import json
 
 class TestGrubThreads:
@@ -16,8 +17,8 @@ class TestGrubThreads:
 
 			comment, reply_to = parse_post_html(posts[18]['comment'])
 			assert(comment == ''
-					'/b\n'
-					'Помогать дыре в мясе\n'
+					'> /b\n'
+					'> Помогать дыре в мясе\n'
 					'А ты смешной.')
 			assert(reply_to == [])
 
@@ -39,7 +40,7 @@ class TestGrubThreads:
 				return f.read().decode('utf-8')
 		monkeypatch.setattr(grub_threads, 'request_json', request_fake)
 
-		posts = get_thread_posts('b', '123', set())
+		posts = get_thread_posts('b', '123')
 
 		assert(len(posts) == 100)
 		assert(posts[6].id == '175407315')
@@ -48,6 +49,25 @@ class TestGrubThreads:
 				'пробовала вчера. Она какая-то скрытая, блин.\nДа и за '
 				'хулиганство уехать не охота.')
 		assert(posts[6].reply_to == [])
+
+	def test_thread_posts_to_pairs(self, monkeypatch):
+		def request_fake(url):
+			with open('./tests/thread.json', 'rb') as f:
+				return f.read().decode('utf-8')
+		monkeypatch.setattr(grub_threads, 'request_json', request_fake)
+
+		posts = get_thread_posts('b', '123')
+		pairs = thread_posts_to_pairs(posts)
+
+		assert(len(pairs) == 64)
+
+		pair = list(filter(lambda p: p[0].id == '175406614' and p[1].id == '175406863', pairs))[0]
+		assert(pair[0].comment.startswith('Двач, помоги. Заебали соседи.'))
+		assert(pair[1].comment.startswith('Переезжай ко мне'))
+
+		pair = list(filter(lambda p: p[0].id == '175410617' and p[1].id == '175410701', pairs))[0]
+		assert(pair[0].comment.startswith('А по батареям постучать?'))
+		assert(pair[1].comment.startswith('По батареям стучать - всем мешать.\nА еще тут вчера'))
 
 
 	def test_get_threads_real_request(self):
@@ -59,7 +79,7 @@ class TestGrubThreads:
 
 	def test_get_thread_posts_real_request(self):
 		threads = get_threads('b')
-		posts = get_thread_posts('b', threads[0], set())
+		posts = get_thread_posts('b', threads[0])
 
 		assert(len(posts) > 0)
 		assert(isinstance(posts[0].id, str))

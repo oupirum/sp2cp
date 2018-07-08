@@ -1,6 +1,8 @@
-dataset/threads/*.txt
-dataset/parsed/
 **/__pycache__/
 .idea/
 .pytest_cache/
 venv/
+dataset/
+models/
+pics/
+deploy.sh

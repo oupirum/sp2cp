@@ -40,10 +40,19 @@ class TestAutoposter:
 
 	def test_thread_to_seed_tokens(self, fake_request_for_select):
 		threads = select_threads('b', 30, 1000, 50, 2000)
-		seed = thread_to_seed_tokens(threads[0][1], 1000, 3)
-		assert(len(seed) > 10)
+		seed = thread_to_seed_tokens(threads[0][1])
+		assert(len(seed) > 100)
 		assert(seed[0:10] == ['двач', ',', 'помоги', '.', 'заебали', 'соседи',
 				'.', 'мало', 'того', ','])
+
+	def test_thread_to_seed_tokens_with_tail(self, fake_request_for_select):
+		threads = select_threads('b', 30, 1000, 50, 2000)
+		seed = thread_to_seed_tokens(threads[0][1], (threads[1][1][0],))
+		assert(len(seed) > 200)
+		assert(seed[0:10] == ['двач', ',', 'помоги', '.', 'заебали', 'соседи',
+				'.', 'мало', 'того', ','])
+		assert(seed[-10:] == ['первый', 'день', ',', 'даже', 'не', 'первую',
+				'неделю', '.', '<eol>', '<eoc>'])
 
 
 	@pytest.fixture(autouse=True)
@@ -125,8 +134,6 @@ class OptsFake():
 	min_oppost_len = 50
 	max_oppost_len = 2000
 
-	use_posts = 3
-	max_post_len = 1000
 	max_res_len = 20
 
 	pics_dir = ''

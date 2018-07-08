@@ -4,7 +4,7 @@ import signal
 import urllib.error
 from grub_threads import get_threads, get_thread_posts
 from generate import Generator
-from parse_dataset import thread_to_tokens
+from parse_dataset import comment_to_tokens
 import requests
 import time
 import random
@@ -41,10 +41,10 @@ def produce_comment(thread, reply_to=None):
 
 	tail = []
 	if reply_to:
-		tail.append(reply_to.comment)
+		tail.append(reply_to)
 
-	seed_tokens = thread_to_seed_tokens(posts, OPTS.max_post_len, OPTS.use_posts, tail)
-	print(len(seed_tokens))
+	seed_tokens = thread_to_seed_tokens(posts, tail)
+	print('seed len:', len(seed_tokens))
 
 	def generated(i, gen_tokens):
 		comment = tokens_to_string(gen_tokens)
@@ -178,7 +178,7 @@ class Poster(threading.Thread):
 		time.sleep(OPTS.watch_interval)
 
 	def _get_replies(self, post_id):
-		posts = get_thread_posts(OPTS.board, self._thread_id, set())
+		posts = get_thread_posts(OPTS.board, self._thread_id)
 		replies = []
 		for post in posts:
 			if post_id in post.reply_to:
@@ -186,18 +186,18 @@ class Poster(threading.Thread):
 		return replies
 
 	def _reply(self, reply):
-		posts = get_thread_posts(OPTS.board, self._thread_id, set())
+		posts = get_thread_posts(OPTS.board, self._thread_id)
 		thread = (self._thread_id, posts)
 		produce_comment(thread, reply)
 
 
 def select_threads(board, max_threads, min_thread_len,
 		min_oppost_len, max_oppost_len):
-	threads = get_threads(board)
-
 	selected_threads = []
+
+	threads = get_threads(board)
 	for thread_id in threads:
-		posts = get_thread_posts(board, thread_id, set())
+		posts = get_thread_posts(board, thread_id)
 		if not posts:
 			continue
 
@@ -215,25 +215,11 @@ def select_threads(board, max_threads, min_thread_len,
 
 	return selected_threads
 
-def thread_to_seed_tokens(thread_posts, max_post_len, use_posts, tail=()):
-	comments = [post.comment for post in thread_posts]
-
-	seed = ''
-	seed += comments[0] + '\n\n'
-
-	if use_posts > 0:
-		comments = list(filter(
-				lambda c: len(c) <= max_post_len,
-				comments[1:]))
-		last_comments = comments[-use_posts:]
-		for comment in last_comments:
-			seed += comment + '\n\n'
-
-	for comment in tail:
-		seed += comment + '\n\n'
-
-	seed_tokens = thread_to_tokens(seed)
-	return seed_tokens
+def thread_to_seed_tokens(thread_posts, tail_posts=()):
+	tokens = comment_to_tokens(thread_posts[0].comment)
+	for post in tail_posts:
+		tokens.extend(comment_to_tokens(post.comment))
+	return tokens
 
 def tokens_to_string(tokens):
 	start = 0
@@ -253,6 +239,7 @@ def tokens_to_string(tokens):
 
 	res = ' '.join(tokens)
 	res = re.sub(' ([.,:?)!;])', '\\1', res)
+	# res = re.sub('(\d+) - ([a-zа-яё0-9])', '\\1-\\2', res)
 	res = re.sub('\s+', ' ', res)
 
 	return res
@@ -318,17 +305,6 @@ if __name__ == '__main__':
 			type=int,
 			default=2000,
 			help='Max OP post len (chars)')
-
-	parser.add_argument(
-			'--use_posts',
-			type=int,
-			default=0,
-			help='How many comments to use to create seed sequence')
-	parser.add_argument(
-			'--max_post_len',
-			type=int,
-			default=1000,
-			help='Max post len (chars)')
 
 	parser.add_argument(
 			'--max_res_len',

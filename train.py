@@ -22,10 +22,10 @@ def main():
 
 	print('lexicon:', len(id2token))
 	print('sequences:', len(sequences))
-	seq_max_len = max([len(seq) for seq in sequences])
-	print('seq_max_len:', seq_max_len)
 	seq_min_len = min([len(seq) for seq in sequences])
 	print('seq_min_len:', seq_min_len)
+	seq_max_len = max([len(seq) for seq in sequences])
+	print('seq_max_len:', seq_max_len)
 
 	data_len = len(sequences) - len(sequences) % OPTS.batch_size
 	data = sequences[0:data_len]
