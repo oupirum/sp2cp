@@ -2,7 +2,7 @@ import argparse
 import json
 import numpy as np
 from model import create_model
-from parse_dataset import parse_comment_pairs
+from parse_dataset import comment_to_tokens
 import os
 import re
 
@@ -18,7 +18,10 @@ def main():
 
 		with open(os.path.join(OPTS.test_data_dir, file), 'rb') as f:
 			content = f.read().decode('utf-8')
-		sequences.extend(parse_comment_pairs(content, 8, 100))
+		for comment in content.split('\n\n'):
+			tokens = comment_to_tokens(comment)
+			if len(tokens) >= 10 and len(tokens) <= 100:
+				sequences.append(tokens)
 
 	print('sequences:', len(sequences))
 	Generator(OPTS.weights_file, OPTS.id2token_file).generate(

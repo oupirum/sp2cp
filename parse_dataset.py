@@ -108,6 +108,7 @@ def comment_to_tokens(comment):
 		line = line.strip()
 		if line:
 			line = line.lower()
+			line = fix_typos(line)
 			line_tokens = str_to_tokens(line)
 			if line_tokens:
 				tokens.extend(line_tokens)
@@ -146,8 +147,9 @@ def process_token(token, tokens):
 
 	token = re.sub('^[0-9]+[).:]$', '', token)
 	token = re.sub('[\'"«»“”]+', '', token)
-	token = re.sub('(\\\\t)+', '', token)
+	token = re.sub('(/t)+', '', token)
 	token = re.sub('(\^h)+', '', token)
+	token = re.sub('</?[a-z0-9\-_.]+>', '', token)
 	token = re.sub('</?[a-z0-9\-_.]+>', '', token)
 
 	token = token.strip()
@@ -159,7 +161,7 @@ def process_token(token, tokens):
 	for char in ['а', 'е', 'о', 'м', 'я', 'у', 'э', 'и', 'a', 'e', 'o']:
 		token = re.sub(re.escape(char) + '{3,}', char * 3, token)
 
-	if re.match('>+[a-zа-яё0-9$]', token):
+	if re.match('>+.', token):
 		tokens.append('>')
 		return process_token(re.sub('^>+', '', token), tokens)
 
@@ -169,15 +171,15 @@ def process_token(token, tokens):
 	if token.startswith('chrome://flags'):
 		tokens.append(token)
 		return True
-	if re.fullmatch('(https?://)?[a-z0-9.\-]+\.(com|net|ru|onion|org)/?[a-z0-9:/\-.?=_#]+', token):
+	if re.fullmatch('(https?://)?[a-z0-9.\-]+\.(com|net|ru|onion|org)/?[a-zа-яё0-9:/\-.?=_#$%]+', token):
 		tokens.append(token)
 		return True
 
 	if re.fullmatch('т\.[еодп]\.?', token):
 		tokens.append(re.sub('\.?$', '.', token))
 		return True
-	if re.fullmatch('([0-9]+-?)*т\.р\.?', token):
-		if re.match('[0-9]', token):
+	if re.fullmatch('.*?[0-9]*т\.р\.?', token):
+		if re.search('[0-9]', token):
 			tokens.append('<n>т.р.')
 		else:
 			tokens.append('т.р.')
@@ -185,13 +187,12 @@ def process_token(token, tokens):
 	if token == '9000':
 		tokens.append(token)
 		return True
-	if re.fullmatch('[0-9]+([\-+.]+[0-9]+)*', token):
+	if re.fullmatch('[0-9][\-+.0-9]*', token):
 		tokens.append('<n>')
 		return True
-	if re.match('[0-9]+([\-+.]+[0-9]+)*[\-/$]*[a-zа-яё]+', token):
+	if re.match('[0-9][\-+.0-9]*[\-/$]*[a-zа-яё]+', token):
 		tokens.append('<n>')
-		token = re.sub('^[0-9]+([\-+.]+[0-9]+)*', '', token)
-		sts = re.sub('^(-?)(\$?)(/?)', '\\1 \\2 \\3 ', token).split(' ')
+		sts = re.sub('^[\-+.0-9]*[0-9](-?)(\$?)(/?)', '\\1 \\2 \\3 ', token).split(' ')
 		for st in sts:
 			process_token(st, tokens)
 		return True
@@ -317,6 +318,89 @@ def process_token(token, tokens):
 
 	tokens.append(token)
 	return True
+
+
+def fix_typos(s):
+	s = ' ' + s + ' '
+	s = s.replace('\\', '/')
+	s = s.replace('блять', 'блядь')
+	s = s.replace('переодическ', 'периодическ')
+	s = s.replace('ё', 'е')
+	s = s.replace('похромист', 'погромист')
+	s = s.replace('прогромизд', 'погромист')
+	s = s.replace('логическеми', 'логическими')
+	s = s.replace(' онэмэ', ' оняме')
+	s = s.replace(' онеме ', ' оняме ')
+	s = s.replace(' анеме ', ' оняме ')
+	s = s.replace('сериш ', 'серишь ')
+	s = s.replace('сосбвенных', 'собсвенных')
+	s = s.replace('гтдрозатвор', 'гидрозатвор')
+	s = s.replace('долбаеб', 'долбоеб')
+	s = s.replace(' ойти', ' айти')
+	s = s.replace(' ой-ти ', ' айти ')
+	s = s.replace(' ай-ти ', ' айти ')
+	s = s.replace('перекот', 'перекат')
+	s = s.replace('ебалана', 'еблана')
+	s = s.replace('протелка', 'протекла')
+	s = s.replace('аеш ', 'аешь ')
+	s = s.replace('яеш ', 'яешь ')
+	s = s.replace('пидар', 'пидор')
+	s = s.replace('зэсь', 'здесь')
+	s = s.replace('увеличалась', 'увеличилась')
+	s = s.replace('репортай', 'репорти')
+	s = s.replace('приветсвт', 'приветств')
+	s = s.replace('грысть', 'грызть')
+	s = s.replace('сартир', 'сортир')
+	s = s.replace('гавно', 'говно')
+	s = s.replace('скрежечит', 'скрежещет')
+	s = s.replace('по английски', 'по-английски')
+	s = s.replace('по разному', 'по-разному')
+	s = s.replace('рылло', 'рыло')
+	s = s.replace('тащемто', 'тащемта')
+	s = s.replace('ебанный', 'ебаный')
+	s = s.replace('остоновит', 'остановит')
+	s = s.replace('прикоса', 'прикаса')
+	s = s.replace('соотвеству', 'соответству')
+	s = s.replace('присекать', 'пресекать')
+	s = s.replace('пиздабол', 'пиздобол')
+	s = s.replace('игнооит', 'игнорит')
+	s = s.replace('двачирую', 'двачую')
+	s = s.replace('двочую', 'двачую')
+	s = s.replace('незнаю', 'не знаю')
+	s = re.sub(' [ахп]+[ахп)(!.]+ ', ' ахаха ', s)
+	s = s.replace('гамаешьь', 'гамаешь')
+	s = s.replace(' оппик', ' оп-пик')
+	s = s.replace(' оппост', ' оп-пост')
+	s = s.replace('впееерд', 'вперед')
+	s = s.replace('расея', 'расия')
+	s = s.replace('рассея', 'расия')
+	s = s.replace('роисся', 'раисся')
+	s = s.replace('делезный', 'железный')
+	s = s.replace('обосрснны', 'обосранны')
+	s = s.replace('обосраны', 'обосранны')
+	s = s.replace(' троль', ' тролль')
+	s = s.replace(' тролленг', ' троллинг')
+	s = s.replace(' троленг', ' троллинг')
+	s = s.replace(' тралленк', ' троллинг')
+	s = s.replace(' траленк', ' троллинг')
+	s = re.sub(' мимо-?_?([a-zа-я0-9])', ' мимо \\1', s)
+	s = s.replace('ессссстттсноо', 'естесна')
+	s = re.sub(' пиздец+', ' пиздец', s)
+	s = s.replace('мсксимум', 'максимум')
+	s = s.replace('шкафоподобеные', 'шкафоподобные')
+	s = s.replace('трахоть', 'трахать')
+	s = s.replace('уровновешаеные', 'уровновешенные')
+	s = s.replace('сиска', 'сиська')
+	s = re.sub('еба{2,5}ть', 'ебать', s)
+	s = s.replace('интелекутально', 'интеллектуально')
+	s = re.sub('бат{2,}хе', 'батхе', s)
+	s = s.replace('пораш', 'параш')
+	s = s.replace('мезантр', 'мизантр')
+	s = s.replace('прекол', 'прикол')
+	s = s.replace('вкотил', 'вкатил')
+	s = s.replace('двачь', 'двач')
+	s = s.replace('№', '№ ')
+	return s.strip()
 
 
 if __name__ == '__main__':

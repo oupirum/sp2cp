@@ -84,7 +84,8 @@ class PostingRunner(threading.Thread):
 class Poster(threading.Thread):
 	def __init__(self, comment, pic_file, reply_to, thread_id):
 		super().__init__(name=thread_id, daemon=True)
-		self._thread_url = 'https://2ch.hk/%s/res/%s.html' % (OPTS.board, thread_id)
+		self._thread_url = 'https://2ch.hk/%s/res/%s.html' \
+				% (OPTS.board, thread_id)
 		self._comment = ('>>%s' % reply_to) \
 				+ '\n' \
 				+ comment
@@ -120,7 +121,8 @@ class Poster(threading.Thread):
 		}
 
 		if self._pic_file:
-			pic_name = translit(os.path.basename(self._pic_file), 'ru', reversed=True)
+			pic_name = translit(os.path.basename(
+					self._pic_file), 'ru', reversed=True)
 			formdata['formimages[]'] = (pic_name, open(self._pic_file, 'rb'))
 
 		response = requests.post(
