@@ -6,6 +6,7 @@ from tensorflow.python.keras.preprocessing.sequence import pad_sequences
 from model import create_model
 from tensorflow.python.keras.callbacks import Callback, ModelCheckpoint
 from tensorflow.python.keras.models import load_model
+from tensorflow.python.keras.utils import multi_gpu_model
 
 def main():
 	os.makedirs(OPTS.models_dir, exist_ok=True)
@@ -44,6 +45,9 @@ def main():
 	y = np.roll(x, -1, 1)
 	y = y[:, :, None]
 
+	if OPTS.gpus > 1:
+		model = multi_gpu_model(model, OPTS.gpus)
+
 	save_step_callback = SaveStepCallback(
 			model, save_every_batch=OPTS.save_every_batch)
 	ckpt_callback = ModelCheckpoint(
@@ -67,6 +71,18 @@ class SaveStepCallback(Callback):
 
 	def on_epoch_begin(self, epoch, logs={}):
 		self._epoch = epoch
+
+	def on_epoch_end(self, epoch, logs={}):
+		weights_file = os.path.join(
+			OPTS.models_dir,
+			'weights_e%d_end.h5' % (self._epoch,))
+		print('\nsave weights:', weights_file)
+		self._model.save_weights(weights_file)
+
+		loss_file = os.path.join(
+			OPTS.models_dir,
+			'loss_e%d_end_%.4f.txt' % (self._epoch, logs.get('loss')))
+		open(loss_file, 'w').close()
 
 	def on_batch_end(self, batch, logs={}):
 		if (batch + 1) % self._save_every == 0:
@@ -111,6 +127,12 @@ if __name__ == '__main__':
 			type=int,
 			default=100,
 			help='How often to save weights')
+
+	parser.add_argument(
+			'--gpus',
+			type=int,
+			default=0)
+
 	OPTS = parser.parse_args()
 
 	main()
