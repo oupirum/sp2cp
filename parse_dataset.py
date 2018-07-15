@@ -146,10 +146,6 @@ def process_token(token, tokens):
 		return False
 
 	token = re.sub('^[0-9]+[).:]$', '', token)
-	token = re.sub('[\'"«»“”]+', '', token)
-	token = re.sub('(/t)+', '', token)
-	token = re.sub('(\^h)+', '', token)
-	token = re.sub('</?[a-z0-9\-_.]+>', '', token)
 	token = re.sub('</?[a-z0-9\-_.]+>', '', token)
 
 	token = token.strip()
@@ -157,9 +153,6 @@ def process_token(token, tokens):
 		return False
 	if not re.search('[a-zа-яё0-9\-_–:()^=>$/]', token):
 		return False
-
-	for char in ['а', 'е', 'о', 'м', 'я', 'у', 'э', 'и', 'a', 'e', 'o']:
-		token = re.sub(re.escape(char) + '{3,}', char * 3, token)
 
 	if re.match('>+.', token):
 		tokens.append('>')
@@ -319,10 +312,8 @@ def process_token(token, tokens):
 	tokens.append(token)
 	return True
 
-
 def fix_typos(s):
 	s = ' ' + s + ' '
-	s = s.replace('\\', '/')
 	s = s.replace('блять', 'блядь')
 	s = s.replace('переодическ', 'периодическ')
 	s = s.replace('ё', 'е')
@@ -400,6 +391,15 @@ def fix_typos(s):
 	s = s.replace('вкотил', 'вкатил')
 	s = s.replace('двачь', 'двач')
 	s = s.replace('№', '№ ')
+
+	s = s.replace('\\', '/')
+	s = re.sub('[\'"«»“”]+', '', s)
+	s = re.sub('(/t)+', '', s)
+	s = re.sub('(\^h)+', '', s)
+
+	for char in 'абвгдежзийклмнопрстуфхцчшщъыьэюяabcdefghigklmnopqrstuvwxyz/-+=_()[]|<>,.?!#@%^&*~0123456789':
+		s = re.sub(re.escape(char) + '{3,}', char * 3, s)
+
 	return s.strip()
 
 

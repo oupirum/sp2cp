@@ -21,8 +21,6 @@ class TestParseDataset():
 		self.pt('10$/день', ['<n>', '$', '/', 'день'])
 		self.pt('qwe/10', ['qwe/10'])
 		self.pt('qwe/qwe', ['qwe', '/', 'qwe'])
-		self.pt('"qwe"', ['qwe'])
-		self.pt('"qwe"', ['qwe'])
 		self.pt('------', ['–'])
 		self.pt('------>', ['->'])
 		self.pt('.....qwe', ['...', 'qwe'])
