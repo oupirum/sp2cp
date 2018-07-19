@@ -5,6 +5,7 @@ import re
 import grub_threads
 import autoposter
 from autoposter import select_threads, thread_to_seed_tokens, Poster
+from grub_threads import Post
 
 class TestAutoposter:
 
@@ -30,7 +31,7 @@ class TestAutoposter:
 		monkeypatch.setattr(grub_threads, 'request_json', request_json_fake)
 
 	def test_select_threads(self, fake_request_for_select):
-		threads = select_threads('b', 30, 1000, 50, 2000)
+		threads = select_threads('b', 30, 10, 200)
 		assert(len(threads) == 3)
 		assert(threads[0][0] == '0')
 		assert(len(threads[0][1]) == 20)
@@ -40,14 +41,14 @@ class TestAutoposter:
 		assert(len(threads[2][1]) == 19)
 
 	def test_thread_to_seed_tokens(self, fake_request_for_select):
-		threads = select_threads('b', 30, 1000, 50, 2000)
+		threads = select_threads('b', 30, 10, 200)
 		seed = thread_to_seed_tokens(threads[0][1])
 		assert(len(seed) > 100)
 		assert(seed[0:10] == ['двач', ',', 'помоги', '.', 'заебали', 'соседи',
 				'.', 'мало', 'того', ','])
 
 	def test_thread_to_seed_tokens_with_tail(self, fake_request_for_select):
-		threads = select_threads('b', 30, 1000, 50, 2000)
+		threads = select_threads('b', 30, 10, 200)
 		seed = thread_to_seed_tokens(threads[0][1], (threads[1][1][0],))
 		assert(len(seed) > 200)
 		assert(seed[0:10] == ['двач', ',', 'помоги', '.', 'заебали', 'соседи',
@@ -64,7 +65,7 @@ class TestAutoposter:
 	def poster(self, monkeypatch):
 		monkeypatch.setattr(autoposter, 'generator', GeneratorFake())
 
-		poster = Poster('some comment', None, '111', '222')
+		poster = Poster('some comment', None, Post('111', 'qweqwe'), '222')
 
 		self._posted_id = 123
 		def post_fake(*args, **kwargs):
@@ -110,17 +111,13 @@ class TestAutoposter:
 		err = capsys.readouterr().err
 		assert(err == '')
 
-	def test_poster_reply_to_reply(self, poster, fake_request_for_replies, capsys):
-		self._posted_id = 175409951
-
-		poster.start()
-		time.sleep(0.1)
-		poster._stopped = True
-
-		assert(autoposter.posting_queue.get() == ('new generated reply', None, '222', '175410055'))
-
-		err = capsys.readouterr().err
-		assert(err == '')
+		assert(autoposter.posting_queue.empty() == False)
+		comment, pic_file, thread_id, reply_to = autoposter.posting_queue.get()
+		assert(comment == 'new generated reply')
+		assert(pic_file == None)
+		assert(thread_id == '222')
+		assert(reply_to.id == '175410055')
+		assert(reply_to.comment == 'qweqwe')
 
 
 class OptsFake():
@@ -141,5 +138,5 @@ class OptsFake():
 
 
 class GeneratorFake:
-	def generate(self, seeds, min_res_len=3, max_res_len=20, callback=None):
-		callback(0, ['new', 'generated', 'reply'])
+	def generate(self, seeds, forbidden_tokens=(), min_res_len=3, max_res_len=20, callback=None):
+		callback(0, ['new', 'generated', 'reply'], ['qweqwe'])

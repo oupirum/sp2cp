@@ -2,7 +2,7 @@ import argparse
 import os
 import signal
 import urllib.error
-from grub_threads import get_threads, get_thread_posts
+from grub_threads import get_threads, get_thread_posts, Post
 from generate import Generator
 from parse_dataset import comment_to_tokens
 import requests
@@ -26,15 +26,15 @@ def main():
 	selected_threads = select_threads(
 			OPTS.board,
 			OPTS.max_threads,
-			OPTS.min_thread_len,
-			OPTS.min_oppost_len,
-			OPTS.max_oppost_len)
+			OPTS.min_seed_len,
+			OPTS.max_seed_len)
 	for thread in selected_threads:
 		produce_post(thread)
 
 	while True:
 		time.sleep(1)
 
+# TODO: refactor
 
 def produce_post(thread, reply_to=None):
 	thread_id, posts = thread
@@ -46,7 +46,8 @@ def produce_post(thread, reply_to=None):
 	seed_tokens = thread_to_seed_tokens(posts, tail)
 	print('seed len:', len(seed_tokens))
 
-	def generated(i, gen_tokens):
+	def generated(i, gen_tokens, seed_tokens):
+		seed = tokens_to_string(seed_tokens)
 		comment = tokens_to_string(gen_tokens)
 		pic_file = None
 		if OPTS.pics_dir:
@@ -55,11 +56,12 @@ def produce_post(thread, reply_to=None):
 			comment,
 			pic_file,
 			thread_id,
-			reply_to.id if reply_to else thread_id
+			Post(reply_to.id if reply_to else thread_id, seed)
 		))
 
 	generator.generate(
 			(seed_tokens,),
+			forbidden_tokens=('<unk>',),
 			min_res_len=3, max_res_len=OPTS.max_res_len,
 			callback=generated)
 
@@ -86,10 +88,11 @@ class Poster(threading.Thread):
 		super().__init__(name=thread_id, daemon=True)
 		self._thread_url = 'https://2ch.hk/%s/res/%s.html' \
 				% (OPTS.board, thread_id)
-		self._comment = ('>>%s' % reply_to) \
+		self._comment = ('>>%s' % reply_to.id) \
 				+ '\n' \
 				+ comment
 		self._pic_file = pic_file
+		self._reply_to = reply_to
 		self._thread_id = thread_id
 		self._stopped = False
 
@@ -99,6 +102,7 @@ class Poster(threading.Thread):
 		if response['Error']:
 			print(response)
 		else:
+			print(self._reply_to)
 			print(self._comment)
 			if self._pic_file:
 				print(os.path.basename(self._pic_file))
@@ -193,8 +197,8 @@ class Poster(threading.Thread):
 		produce_post(thread, reply)
 
 
-def select_threads(board, max_threads, min_thread_len,
-		min_oppost_len, max_oppost_len):
+def select_threads(board, max_threads,
+		min_seed_len, max_seed_len):
 	selected_threads = []
 
 	threads = get_threads(board)
@@ -203,13 +207,10 @@ def select_threads(board, max_threads, min_thread_len,
 		if not posts:
 			continue
 
-		thread_len = len(''.join([post.comment for post in posts]))
-		oppost_len = len(posts[0].comment)
-		num_posts = len(posts)
-		if thread_len >= min_thread_len \
-				and oppost_len >= min_oppost_len \
-				and oppost_len <= max_oppost_len \
-				and num_posts >= 3:
+		seed_tokens = thread_to_seed_tokens(posts)
+		if len(posts) >= 3 \
+				and len(seed_tokens) >= min_seed_len \
+				and len(seed_tokens) <= max_seed_len:
 			selected_threads.append((thread_id, posts))
 
 			if len(selected_threads) == max_threads:
@@ -237,11 +238,14 @@ def tokens_to_string(tokens):
 		if token in ['<eoc>', '<pad>', '<unk>']:
 			tokens[i] = ''
 		if token == '<n>':
-			tokens[i] = str(random.randrange(0, 101, 1))
+			if len(tokens) > i + 1 and tokens[i + 1] in ('к18', 'k18'):
+				tokens[i] = ''
+				tokens[i + 1] = '2k18'
+			else:
+				tokens[i] = str(random.randrange(0, 101, 1))
 
 	res = ' '.join(tokens)
 	res = re.sub(' ([.,:?)!;])', '\\1', res)
-	# res = re.sub('(\d+) - ([a-zа-яё0-9])', '\\1-\\2', res)
 	res = re.sub('\s+', ' ', res)
 
 	return res
@@ -293,20 +297,15 @@ if __name__ == '__main__':
 			default=30,
 			help='Max amount of threads to post')
 	parser.add_argument(
-			'--min_thread_len',
+			'--min_seed_len',
 			type=int,
-			default=1000,
-			help='Min thread len to select (chars)')
+			default=10,
+			help='Min OP post len (words)')
 	parser.add_argument(
-			'--min_oppost_len',
+			'--max_seed_len',
 			type=int,
-			default=50,
-			help='Min OP post len (chars)')
-	parser.add_argument(
-			'--max_oppost_len',
-			type=int,
-			default=2000,
-			help='Max OP post len (chars)')
+			default=200,
+			help='Max OP post len (words)')
 
 	parser.add_argument(
 			'--max_res_len',

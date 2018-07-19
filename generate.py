@@ -20,12 +20,13 @@ def main():
 			content = f.read().decode('utf-8')
 		for comment in content.split('\n\n'):
 			tokens = comment_to_tokens(comment)
-			if len(tokens) >= 10 and len(tokens) <= 100:
+			if len(tokens) >= 10 and len(tokens) <= 80:
 				sequences.append(tokens)
 
 	print('sequences:', len(sequences))
 	Generator(OPTS.weights_file, OPTS.id2token_file).generate(
 			sequences,
+			forbidden_tokens=OPTS.forbidden_tokens.split(','),
 			max_res_len=OPTS.max_res_len)
 
 
@@ -35,21 +36,24 @@ class Generator:
 		self._token2id = {token: id for id, token in enumerate(self._id2token)}
 
 	def generate(self, seeds,
+			forbidden_tokens=(),
 			min_res_len=3, max_res_len=30,
 			callback=None):
 		results = []
+		forbidden_ids = [self._token2id[token] if token in self._token2id else self._token2id['<unk>'] \
+				for token in forbidden_tokens]
 		for i, seed_tokens in enumerate(seeds):
 			seed_ids = [self._token2id[token] if token in self._token2id else self._token2id['<unk>'] \
 					for token in seed_tokens]
 			res = self._gen_seq(seed_ids,
 					min_res_len, max_res_len,
 					end_tokens=[self._token2id['<eoc>']],
-					forbidden_tokens=[self._token2id['<unk>']])
+					forbidden_ids=forbidden_ids)
 			res_tokens = [self._id2token[id] for id in res]
 			results.append(res_tokens)
 
 			if callback:
-				callback(i, res_tokens)
+				callback(i, res_tokens, seed_tokens)
 			else:
 				print('')
 				print(' '.join(seed_tokens))
@@ -73,7 +77,7 @@ class Generator:
 	def _gen_seq(self, seed,
 			min_len, max_len,
 			end_tokens,
-			forbidden_tokens):
+			forbidden_ids):
 		generated = []
 
 		for id in seed:
@@ -86,16 +90,16 @@ class Generator:
 			if len(generated) >= min_len and next_id in end_tokens:
 				break
 
-			if next_id in forbidden_tokens:
+			if next_id in forbidden_ids:
 				self._model.reset_states()
-				return self._gen_seq(seed, min_len, max_len, end_tokens, forbidden_tokens)
+				return self._gen_seq(seed, min_len, max_len, end_tokens, forbidden_ids)
 
 			ni_prob = self._model.predict(np.array(next_id)[None, None])[0, 0]
 
 		self._model.reset_states()
 
 		if len(generated) > max_len:
-			return self._gen_seq(seed, min_len, max_len, end_tokens, forbidden_tokens)
+			return self._gen_seq(seed, min_len, max_len, end_tokens, forbidden_ids)
 
 		return generated
 
@@ -115,9 +119,13 @@ if __name__ == '__main__':
 			type=str,
 			default='./tests/dataset/threads/')
 	parser.add_argument(
+			'--forbidden_tokens',
+			type=str,
+			default='<unk>')
+	parser.add_argument(
 			'--max_res_len',
 			type=int,
-			default=100)
+			default=200)
 	OPTS = parser.parse_args()
 
 	main()
