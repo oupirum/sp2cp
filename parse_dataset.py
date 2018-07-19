@@ -3,6 +3,7 @@ import json
 import os
 import re
 from collections import Counter
+from fix_typos import fix_typos
 
 def main():
 	os.makedirs(OPTS.out_dir, exist_ok=True)
@@ -311,95 +312,6 @@ def process_token(token, tokens):
 
 	tokens.append(token)
 	return True
-
-def fix_typos(s):
-	s = ' ' + s + ' '
-	s = s.replace('блять', 'блядь')
-	s = s.replace('переодическ', 'периодическ')
-	s = s.replace('ё', 'е')
-	s = s.replace('похромист', 'погромист')
-	s = s.replace('прогромизд', 'погромист')
-	s = s.replace('логическеми', 'логическими')
-	s = s.replace(' онэмэ', ' оняме')
-	s = s.replace(' онеме ', ' оняме ')
-	s = s.replace(' анеме ', ' оняме ')
-	s = s.replace('сериш ', 'серишь ')
-	s = s.replace('сосбвенных', 'собсвенных')
-	s = s.replace('гтдрозатвор', 'гидрозатвор')
-	s = s.replace('долбаеб', 'долбоеб')
-	s = s.replace(' ойти', ' айти')
-	s = s.replace(' ой-ти ', ' айти ')
-	s = s.replace(' ай-ти ', ' айти ')
-	s = s.replace('перекот', 'перекат')
-	s = s.replace('ебалана', 'еблана')
-	s = s.replace('протелка', 'протекла')
-	s = s.replace('аеш ', 'аешь ')
-	s = s.replace('яеш ', 'яешь ')
-	s = s.replace('пидар', 'пидор')
-	s = s.replace('зэсь', 'здесь')
-	s = s.replace('увеличалась', 'увеличилась')
-	s = s.replace('репортай', 'репорти')
-	s = s.replace('приветсвт', 'приветств')
-	s = s.replace('грысть', 'грызть')
-	s = s.replace('сартир', 'сортир')
-	s = s.replace('гавно', 'говно')
-	s = s.replace('скрежечит', 'скрежещет')
-	s = s.replace('по английски', 'по-английски')
-	s = s.replace('по разному', 'по-разному')
-	s = s.replace('рылло', 'рыло')
-	s = s.replace('тащемто', 'тащемта')
-	s = s.replace('ебанный', 'ебаный')
-	s = s.replace('остоновит', 'остановит')
-	s = s.replace('прикоса', 'прикаса')
-	s = s.replace('соотвеству', 'соответству')
-	s = s.replace('присекать', 'пресекать')
-	s = s.replace('пиздабол', 'пиздобол')
-	s = s.replace('игнооит', 'игнорит')
-	s = s.replace('двачирую', 'двачую')
-	s = s.replace('двочую', 'двачую')
-	s = s.replace('незнаю', 'не знаю')
-	s = re.sub(' [ахп]+[ахп)(!.]+ ', ' ахаха ', s)
-	s = s.replace('гамаешьь', 'гамаешь')
-	s = s.replace(' оппик', ' оп-пик')
-	s = s.replace(' оппост', ' оп-пост')
-	s = s.replace('впееерд', 'вперед')
-	s = s.replace('расея', 'расия')
-	s = s.replace('рассея', 'расия')
-	s = s.replace('роисся', 'раисся')
-	s = s.replace('делезный', 'железный')
-	s = s.replace('обосрснны', 'обосранны')
-	s = s.replace('обосраны', 'обосранны')
-	s = s.replace(' троль', ' тролль')
-	s = s.replace(' тролленг', ' троллинг')
-	s = s.replace(' троленг', ' троллинг')
-	s = s.replace(' тралленк', ' троллинг')
-	s = s.replace(' траленк', ' троллинг')
-	s = re.sub(' мимо-?_?([a-zа-я0-9])', ' мимо \\1', s)
-	s = s.replace('ессссстттсноо', 'естесна')
-	s = re.sub(' пиздец+', ' пиздец', s)
-	s = s.replace('мсксимум', 'максимум')
-	s = s.replace('шкафоподобеные', 'шкафоподобные')
-	s = s.replace('трахоть', 'трахать')
-	s = s.replace('уровновешаеные', 'уровновешенные')
-	s = s.replace('сиска', 'сиська')
-	s = re.sub('еба{2,5}ть', 'ебать', s)
-	s = s.replace('интелекутально', 'интеллектуально')
-	s = re.sub('бат{2,}хе', 'батхе', s)
-	s = s.replace('пораш', 'параш')
-	s = s.replace('мезантр', 'мизантр')
-	s = s.replace('прекол', 'прикол')
-	s = s.replace('вкотил', 'вкатил')
-	s = s.replace('двачь', 'двач')
-	s = s.replace('№', '№ ')
-
-	s = s.replace('\\', '/')
-	s = re.sub('[\'"«»“”]+', '', s)
-	s = re.sub('(\^h)+', '', s)
-
-	for char in 'абвгдежзийклмнопрстуфхцчшщъыьэюяabcdefghigklmnopqrstuvwxyz/-+=_()[]|<>,.?!#@%^&*~0123456789':
-		s = re.sub(re.escape(char) + '{3,}', char * 3, s)
-
-	return s.strip()
 
 
 if __name__ == '__main__':
