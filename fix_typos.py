@@ -83,6 +83,8 @@ def fix_typos(s):
 	s = s.replace('\\', '/')
 	s = re.sub('[\'"«»“”]+', '', s)
 	s = re.sub('(\^h)+', '', s)
+	s = re.sub('^[0-9]+[).:] ', '', s)
+	s = re.sub('</?[a-z0-9\-_.]+>', '', s)
 
 	for char in 'абвгдежзийклмнопрстуфхцчшщъыьэюяabcdefghigklmnopqrstuvwxyz/-+=_()[]|<>,.?!#@%^&*~0123456789':
 		s = re.sub(re.escape(char) + '{3,}', char * 3, s)

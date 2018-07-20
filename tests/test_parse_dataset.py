@@ -1,6 +1,7 @@
 from parse_dataset import \
 		process_token, \
-		parse_dataset
+		parse_dataset, \
+		comment_to_tokens
 import random
 
 class TestParseDataset():
@@ -24,7 +25,6 @@ class TestParseDataset():
 		self.pt('------', ['–'])
 		self.pt('------>', ['->'])
 		self.pt('.....qwe', ['...', 'qwe'])
-		self.pt('qwe<br>', ['qwe'])
 		self.pt('qwe:))', ['qwe', ':)'])
 		self.pt('qwe:ddd', ['qwe', ':d'])
 		self.pt('qwe)xd', ['qwe', 'xd'])
@@ -78,3 +78,7 @@ class TestParseDataset():
 		for i in range(0, 3):
 			assert(random.choice(seqs).count(2) >= 2)  # <eol>
 			assert(random.choice(seqs).count(3) == 2)  # <eoc>
+
+	def test_comment_to_tokens(self):
+		assert(comment_to_tokens('имея внешку 3 из 10. что тебе мешает завести хотя бы одну?') == ['имея', 'внешку', '<n>', 'из', '<n>', 'что', 'тебе', 'мешает', 'завести', 'хотя', 'бы', 'одну', '?', '<eol>', '<eoc>'])
+		assert(comment_to_tokens('qwe<br> adasd') == ['qwe', 'adasd', '<eol>', '<eoc>'])

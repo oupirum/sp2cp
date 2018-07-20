@@ -146,9 +146,6 @@ def process_token(token, tokens):
 	if not token:
 		return False
 
-	token = re.sub('^[0-9]+[).:]$', '', token)
-	token = re.sub('</?[a-z0-9\-_.]+>', '', token)
-
 	token = token.strip()
 	if not token:
 		return False
