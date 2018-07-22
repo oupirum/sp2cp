@@ -23,11 +23,17 @@ def main():
 			if len(tokens) >= 10 and len(tokens) <= 80:
 				sequences.append(tokens)
 
+	def callback(i, res_tokens, seed_tokens):
+		print('')
+		print(' '.join(seed_tokens))
+		print('>>>>>>', ' '.join(res_tokens))
+
 	print('sequences:', len(sequences))
 	Generator(OPTS.weights_file, OPTS.id2token_file).generate(
 			sequences,
 			forbidden_tokens=OPTS.forbidden_tokens.split(','),
-			max_res_len=OPTS.max_res_len)
+			max_res_len=OPTS.max_res_len,
+			callback=callback)
 
 
 class Generator:
@@ -54,10 +60,6 @@ class Generator:
 
 			if callback:
 				callback(i, res_tokens, seed_tokens)
-			else:
-				print('')
-				print(' '.join(seed_tokens))
-				print('>>>>>>', ' '.join(res_tokens))
 
 		return results
 

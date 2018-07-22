@@ -29,41 +29,30 @@ def main():
 			OPTS.min_seed_len,
 			OPTS.max_seed_len)
 	for thread in selected_threads:
-		produce_post(thread)
+		thread_id, posts = thread
+		produce_post(thread_id, posts[0])
 
 	while True:
 		time.sleep(1)
 
-# TODO: refactor
 
-def produce_post(thread, reply_to=None):
-	thread_id, posts = thread
-
-	tail = []
-	if reply_to:
-		tail.append(reply_to)
-
-	seed_tokens = thread_to_seed_tokens(posts, tail)
-	print('seed len:', len(seed_tokens))
-
-	def generated(i, gen_tokens, seed_tokens):
-		seed = tokens_to_string(seed_tokens)
-		comment = tokens_to_string(gen_tokens)
-		pic_file = None
-		if OPTS.pics_dir:
-			pic_file = select_random_pic(OPTS.pics_dir)
-		posting_queue.put((
-			comment,
-			pic_file,
-			thread_id,
-			Post(reply_to.id if reply_to else thread_id, seed)
-		))
-
-	generator.generate(
+def produce_post(thread_id, reply_to):
+	seed_tokens = comment_to_tokens(reply_to.comment)
+	gen_tokens = generator.generate(
 			(seed_tokens,),
 			forbidden_tokens=('<unk>',),
-			min_res_len=3, max_res_len=OPTS.max_res_len,
-			callback=generated)
+			min_res_len=3, max_res_len=OPTS.max_res_len)[0]
+
+	comment = tokens_to_string(gen_tokens)
+	pic_file = None
+	if OPTS.pics_dir:
+		pic_file = select_random_pic(OPTS.pics_dir)
+	posting_queue.put((
+		comment,
+		pic_file,
+		thread_id,
+		reply_to
+	))
 
 
 class PostingRunner(threading.Thread):
@@ -78,22 +67,20 @@ class PostingRunner(threading.Thread):
 				time.sleep(OPTS.post_interval - time_delta)
 
 			comment, pic_file, thread_id, reply_to = posting_queue.get()
-			Poster(comment, pic_file, reply_to, thread_id).start()
+			Poster(comment, pic_file, thread_id, reply_to).start()
 
 			self._last_post_time = time.time()
 
 
 class Poster(threading.Thread):
-	def __init__(self, comment, pic_file, reply_to, thread_id):
+	def __init__(self, comment, pic_file, thread_id, reply_to):
 		super().__init__(name=thread_id, daemon=True)
 		self._thread_url = 'https://2ch.hk/%s/res/%s.html' \
 				% (OPTS.board, thread_id)
-		self._comment = ('>>%s' % reply_to.id) \
-				+ '\n' \
-				+ comment
+		self._comment = '>>%s\n%s' % (reply_to.id, comment)
 		self._pic_file = pic_file
-		self._reply_to = reply_to
 		self._thread_id = thread_id
+		self._reply_to = reply_to
 		self._stopped = False
 
 	def run(self):
@@ -101,6 +88,9 @@ class Poster(threading.Thread):
 		print('')
 		if response['Error']:
 			print(response)
+			print('Retry...')
+			self._retry_pause()
+			self.run()
 		else:
 			print(self._reply_to)
 			print(self._comment)
@@ -148,7 +138,7 @@ class Poster(threading.Thread):
 	def _watch_for_replies(self, post_id):
 		seen = set()
 		while not self._stopped:
-			self._sleep()
+			self._watcher_pause()
 
 			replies = []
 			try:
@@ -180,9 +170,6 @@ class Poster(threading.Thread):
 
 					self._reply(reply)
 
-	def _sleep(self):
-		time.sleep(OPTS.watch_interval)
-
 	def _get_replies(self, post_id):
 		posts = get_thread_posts(OPTS.board, self._thread_id)
 		replies = []
@@ -192,9 +179,13 @@ class Poster(threading.Thread):
 		return replies
 
 	def _reply(self, reply):
-		posts = get_thread_posts(OPTS.board, self._thread_id)
-		thread = (self._thread_id, posts)
-		produce_post(thread, reply)
+		produce_post(self._thread_id, reply)
+
+	def _watcher_pause(self):
+		time.sleep(OPTS.watch_interval)
+
+	def _retry_pause(self):
+		time.sleep(5)
 
 
 def select_threads(board, max_threads,
@@ -207,7 +198,7 @@ def select_threads(board, max_threads,
 		if not posts:
 			continue
 
-		seed_tokens = thread_to_seed_tokens(posts)
+		seed_tokens = comment_to_tokens(posts[0].comment)
 		if len(posts) >= 3 \
 				and len(seed_tokens) >= min_seed_len \
 				and len(seed_tokens) <= max_seed_len:
@@ -217,12 +208,6 @@ def select_threads(board, max_threads,
 				break
 
 	return selected_threads
-
-def thread_to_seed_tokens(thread_posts, tail_posts=()):
-	tokens = comment_to_tokens(thread_posts[0].comment)
-	for post in tail_posts:
-		tokens.extend(comment_to_tokens(post.comment))
-	return tokens
 
 def tokens_to_string(tokens):
 	start = 0
@@ -288,7 +273,7 @@ if __name__ == '__main__':
 	parser.add_argument(
 			'--watch_interval',
 			type=int,
-			default=120,
+			default=60,
 			help='Interval for polling new replies (seconds)')
 
 	parser.add_argument(
