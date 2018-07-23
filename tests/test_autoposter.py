@@ -127,7 +127,6 @@ class OptsFake():
 	watch_interval = 1
 
 	max_threads = 30
-	min_thread_len = 1000
 	min_oppost_len = 50
 	max_oppost_len = 2000
 

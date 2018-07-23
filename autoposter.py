@@ -26,8 +26,8 @@ def main():
 	selected_threads = select_threads(
 			OPTS.board,
 			OPTS.max_threads,
-			OPTS.min_seed_len,
-			OPTS.max_seed_len)
+			OPTS.min_oppost_len,
+			OPTS.max_oppost_len)
 	for thread in selected_threads:
 		thread_id, posts = thread
 		produce_post(thread_id, posts[0])
@@ -188,7 +188,7 @@ class Poster(threading.Thread):
 
 
 def select_threads(board, max_threads,
-		min_seed_len, max_seed_len):
+		min_oppost_len, max_oppost_len):
 	selected_threads = []
 
 	threads = get_threads(board)
@@ -199,8 +199,8 @@ def select_threads(board, max_threads,
 
 		seed_tokens = comment_to_tokens(posts[0].comment)
 		if len(posts) >= 3 \
-				and len(seed_tokens) >= min_seed_len \
-				and len(seed_tokens) <= max_seed_len:
+				and len(seed_tokens) >= min_oppost_len \
+				and len(seed_tokens) <= max_oppost_len:
 			selected_threads.append((thread_id, posts))
 
 			if len(selected_threads) == max_threads:
@@ -281,12 +281,12 @@ if __name__ == '__main__':
 			default=30,
 			help='Max amount of threads to post')
 	parser.add_argument(
-			'--min_seed_len',
+			'--min_oppost_len',
 			type=int,
 			default=10,
 			help='Min OP post len (words)')
 	parser.add_argument(
-			'--max_seed_len',
+			'--max_oppost_len',
 			type=int,
 			default=200,
 			help='Max OP post len (words)')
