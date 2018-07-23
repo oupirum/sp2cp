@@ -88,9 +88,10 @@ class Poster(threading.Thread):
 		print('')
 		if response['Error']:
 			print(response)
-			print('Retry...')
-			self._retry_pause()
-			self.run()
+			if response['Error'] == -8:
+				print('Retry...')
+				self._retry_pause()
+				self.run()
 		else:
 			print(self._reply_to)
 			print(self._comment)
@@ -146,12 +147,10 @@ class Poster(threading.Thread):
 			except urllib.error.HTTPError as err:
 				print('')
 				print('HTTPError:', err.code, err.reason)
-
 				n_left = threading.active_count() - 3
 				print('watchers left:', n_left)
 				if n_left == 0:
 					os.kill(os.getpid(), signal.SIGINT)
-
 				break
 			except Exception as err:
 				print('')
