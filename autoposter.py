@@ -96,7 +96,7 @@ class Poster(threading.Thread):
 			print(self._reply_to)
 			print(self._comment)
 			if self._pic_file:
-				print(os.path.basename(self._pic_file))
+				print('[' + os.path.basename(self._pic_file) + ']')
 			post_id = str(response['Num'])
 			print(self._thread_url + '#' + post_id)
 			self._watch_for_replies(post_id)
