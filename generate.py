@@ -31,7 +31,7 @@ def main():
 	print('sequences:', len(sequences))
 	Generator(OPTS.weights_file, OPTS.id2token_file).generate(
 			sequences,
-			forbidden_tokens=OPTS.forbidden_tokens.split(','),
+			forbidden_tokens=OPTS.forbidden_tokens.split(',') if OPTS.forbidden_tokens else (),
 			max_res_len=OPTS.max_res_len,
 			callback=callback)
 
