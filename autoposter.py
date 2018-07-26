@@ -23,14 +23,21 @@ def main():
 
 	PostingRunner().start()
 
-	selected_threads = select_threads(
-			OPTS.board,
-			OPTS.max_threads,
-			OPTS.min_oppost_len,
-			OPTS.max_oppost_len)
-	for thread in selected_threads:
-		thread_id, posts = thread
-		produce_post(thread_id, posts[0])
+	if OPTS.thread_id:
+		selected_posts = select_thread_posts(OPTS.board, OPTS.thread_id,
+				max_posts=OPTS.max_posts,
+				min_post_len=OPTS.min_post_len,
+				max_post_len=OPTS.max_post_len)
+		for post in selected_posts:
+			produce_post(OPTS.thread_id, post)
+	else:
+		selected_threads = select_threads(OPTS.board,
+				max_threads=OPTS.max_threads,
+				min_post_len=OPTS.min_post_len,
+				max_post_len=OPTS.max_post_len)
+		for thread in selected_threads:
+			thread_id, posts = thread
+			produce_post(thread_id, posts[0])
 
 	while True:
 		time.sleep(1)
@@ -188,7 +195,7 @@ class Poster(threading.Thread):
 
 
 def select_threads(board, max_threads,
-		min_oppost_len, max_oppost_len):
+		min_post_len, max_post_len):
 	selected_threads = []
 
 	threads = get_threads(board)
@@ -199,14 +206,31 @@ def select_threads(board, max_threads,
 
 		seed_tokens = comment_to_tokens(posts[0].comment)
 		if len(posts) >= 3 \
-				and len(seed_tokens) >= min_oppost_len \
-				and len(seed_tokens) <= max_oppost_len:
+				and len(seed_tokens) >= min_post_len \
+				and len(seed_tokens) <= max_post_len:
 			selected_threads.append((thread_id, posts))
 
 			if len(selected_threads) == max_threads:
 				break
 
 	return selected_threads
+
+def select_thread_posts(board, thread_id, max_posts,
+		min_post_len, max_post_len):
+	selected_posts = []
+
+	posts = get_thread_posts(board, thread_id)
+	random.shuffle(posts)
+	for post in posts:
+		seed_tokens = comment_to_tokens(post.comment)
+		if len(seed_tokens) >= min_post_len \
+				and len(seed_tokens) <= max_post_len:
+			selected_posts.append(post)
+
+			if len(selected_posts) == max_posts:
+				break
+
+	return selected_posts
 
 def tokens_to_string(tokens):
 	start = 0
@@ -275,21 +299,35 @@ if __name__ == '__main__':
 			default=60,
 			help='Interval for polling new replies (seconds)')
 
+	# mode "reply to oppost in several threads"
 	parser.add_argument(
 			'--max_threads',
 			type=int,
 			default=30,
-			help='Max amount of threads to post')
+			help='Max amount of threads to reply')
+
+	# mode "reply to several posts in one specified thread"
 	parser.add_argument(
-			'--min_oppost_len',
+			'--thread_id',
+			type=str,
+			default='',
+			help='Thread to reply')
+	parser.add_argument(
+			'--max_posts',
+			type=int,
+			default=5,
+			help='Max amount of posts to reply')
+
+	parser.add_argument(
+			'--min_post_len',
 			type=int,
 			default=10,
-			help='Min OP post len (words)')
+			help='Min post len (words)')
 	parser.add_argument(
-			'--max_oppost_len',
+			'--max_post_len',
 			type=int,
 			default=200,
-			help='Max OP post len (words)')
+			help='Max post len (words)')
 
 	parser.add_argument(
 			'--max_res_len',
