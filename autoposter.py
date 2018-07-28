@@ -2,16 +2,14 @@ import argparse
 import os
 import signal
 import urllib.error
-from grub_threads import get_threads, get_thread_posts, Post
+import api
 from generate import Generator
 from parse_dataset import comment_to_tokens
-import requests
 import time
 import random
 import re
 import threading
 import queue
-from transliterate import translit
 
 OPTS = None
 posting_queue = queue.Queue()
@@ -24,7 +22,8 @@ def main():
 	PostingRunner().start()
 
 	if OPTS.thread_id:
-		selected_posts = select_thread_posts(OPTS.board, OPTS.thread_id,
+		selected_posts = select_thread_posts(OPTS.board,
+				thread_id=OPTS.thread_id,
 				max_posts=OPTS.max_posts,
 				min_post_len=OPTS.min_post_len,
 				max_post_len=OPTS.max_post_len)
@@ -82,8 +81,6 @@ class PostingRunner(threading.Thread):
 class Poster(threading.Thread):
 	def __init__(self, comment, pic_file, thread_id, reply_to):
 		super().__init__(name=thread_id, daemon=True)
-		self._thread_url = 'https://2ch.hk/%s/res/%s.html' \
-				% (OPTS.board, thread_id)
 		self._comment = '>>%s\n%s' % (reply_to.id, comment)
 		self._pic_file = pic_file
 		self._thread_id = thread_id
@@ -91,7 +88,12 @@ class Poster(threading.Thread):
 		self._stopped = False
 
 	def run(self):
-		response = self._post()
+		response, id, link = api.post(
+				self._comment,
+				self._thread_id,
+				OPTS.board,
+				OPTS.passcode,
+				self._pic_file)
 		print('')
 		if response['Error']:
 			print(response)
@@ -104,44 +106,8 @@ class Poster(threading.Thread):
 			print(self._comment)
 			if self._pic_file:
 				print('[' + os.path.basename(self._pic_file) + ']')
-			post_id = str(response['Num'])
-			print(self._thread_url + '#' + post_id)
-			self._watch_for_replies(post_id)
-
-	def _post(self):
-		formdata = {
-			'task': (None, 'post'),
-			'board': (None, OPTS.board),
-			'thread': (None, self._thread_id),
-			'comment': (None, self._comment),
-			'email': (None, ''),
-			'usercode': (None, OPTS.passcode),
-			'code': (None, ''),
-			'captcha_type': (None, 'invisible_recaptcha'),
-			'oekaki_image': (None, ''),
-			'oekaki_metadata': (None, ''),
-		}
-
-		if self._pic_file:
-			pic_name = translit(os.path.basename(
-					self._pic_file), 'ru', reversed=True)
-			formdata['formimages[]'] = (pic_name, open(self._pic_file, 'rb'))
-
-		response = requests.post(
-				OPTS.post_url,
-				files=formdata,
-				cookies={
-					'passcode_auth': OPTS.passcode,
-				},
-				headers={
-					'Accept': 'application/json',
-					'Cache-Control': 'no-cache',
-					'Referer': self._thread_url,
-					'Host': '2ch.hk',
-					'Origin': 'https://2ch.hk',
-					'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.170 Safari/537.36',
-				})
-		return response.json()
+			print(link)
+			self._watch_for_replies(id)
 
 	def _watch_for_replies(self, post_id):
 		seen = set()
@@ -177,7 +143,7 @@ class Poster(threading.Thread):
 					self._reply(reply)
 
 	def _get_replies(self, post_id):
-		posts = get_thread_posts(OPTS.board, self._thread_id)
+		posts = api.get_thread_posts(OPTS.board, self._thread_id)
 		replies = []
 		for post in posts:
 			if post_id in post.reply_to:
@@ -198,9 +164,9 @@ def select_threads(board, max_threads,
 		min_post_len, max_post_len):
 	selected_threads = []
 
-	threads = get_threads(board)
+	threads = api.get_threads(board)
 	for thread_id in threads:
-		posts = get_thread_posts(board, thread_id)
+		posts = api.get_thread_posts(board, thread_id)
 		if not posts:
 			continue
 
@@ -219,7 +185,7 @@ def select_thread_posts(board, thread_id, max_posts,
 		min_post_len, max_post_len):
 	selected_posts = []
 
-	posts = get_thread_posts(board, thread_id)
+	posts = api.get_thread_posts(board, thread_id)
 	random.shuffle(posts)
 	for post in posts:
 		seed_tokens = comment_to_tokens(post.comment)
@@ -281,18 +247,14 @@ if __name__ == '__main__':
 			type=str,
 			default='b')
 	parser.add_argument(
-			'--post_url',
+			'--passcode',
 			type=str,
-			default='https://2ch.hk/makaba/posting.fcgi?json=1')
+			required=True)
 	parser.add_argument(
 			'--post_interval',
 			type=int,
 			default=25,
 			help='Interval between posting new comments (seconds)')
-	parser.add_argument(
-			'--passcode',
-			type=str,
-			required=True)
 	parser.add_argument(
 			'--watch_interval',
 			type=int,
@@ -316,18 +278,18 @@ if __name__ == '__main__':
 			'--max_posts',
 			type=int,
 			default=5,
-			help='Max amount of posts to reply')
+			help='Max amount of posts in thread to reply')
 
 	parser.add_argument(
 			'--min_post_len',
 			type=int,
 			default=10,
-			help='Min post len (words)')
+			help='Min post len to select (words)')
 	parser.add_argument(
 			'--max_post_len',
 			type=int,
 			default=200,
-			help='Max post len (words)')
+			help='Max post len to select (words)')
 
 	parser.add_argument(
 			'--max_res_len',

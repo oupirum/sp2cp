@@ -2,10 +2,9 @@ import time
 import pytest
 import json
 import re
-import grub_threads
 import autoposter
-from autoposter import select_threads, comment_to_tokens, Poster
-from grub_threads import Post
+from autoposter import select_threads, Poster
+import api
 
 class TestAutoposter:
 
@@ -32,7 +31,7 @@ class TestAutoposter:
 			posts = thread['threads'][0]['posts']
 			thread['threads'][0]['posts'] = posts[i*20:i*20+20]
 			return json.dumps(thread, ensure_ascii=False)
-		monkeypatch.setattr(grub_threads, 'request_json', request_json_fake)
+		monkeypatch.setattr(api, 'request_json', request_json_fake)
 
 	def test_select_threads(self, fake_request_for_select):
 		threads = select_threads('b', 30, 10, 200)
@@ -50,18 +49,17 @@ class TestAutoposter:
 		def request_json_fake(url):
 			with open('./tests/thread.json', 'rb') as f:
 				return f.read().decode('utf-8')
-		monkeypatch.setattr(grub_threads, 'request_json', request_json_fake)
+		monkeypatch.setattr(api, 'request_json', request_json_fake)
 
-	def fake_poster(self, monkeypatch, posted_id, error=None):
+	def fake_poster(self, monkeypatch, post_id, error=None):
 		monkeypatch.setattr(autoposter, 'generator', GeneratorFake())
 
-		poster = Poster('some comment', None, '222', Post('111', 'qweqwe'))
-		poster._error = error
-
 		def post_fake(*args, **kwargs):
-			print(args, kwargs)
-			return {'Num': posted_id, 'Error': poster._error, 'Status': 'OK'}
-		monkeypatch.setattr(poster, '_post', post_fake)
+			return ({'Num': post_id, 'Error': poster._error, 'Status': 'OK'}, post_id, 'http://post_url')
+		monkeypatch.setattr(api, 'post', post_fake)
+
+		poster = Poster('some comment', None, 'thread_id', api.Post('reply_to_id', 'reply_to_comment'))
+		poster._error = error
 
 		def sleep_fake():
 			time.sleep(0.01)
@@ -77,7 +75,7 @@ class TestAutoposter:
 		poster._stopped = True
 
 		out = capsys.readouterr().out
-		assert(out == '() {}\n\n<Post 111 [] \'qweqwe\'>\n>>111\nsome comment\nhttps://2ch.hk/b/res/222.html#123\n')
+		assert(out == '\n<Post reply_to_id () \'reply_to_comment\'>\n>>reply_to_id\nsome comment\nhttp://post_url\n')
 
 		err = capsys.readouterr().err
 		assert(err == '')
@@ -92,15 +90,15 @@ class TestAutoposter:
 
 		out = capsys.readouterr().out
 		assert('\nRetry...\n' in out)
-		assert(out.endswith('<Post 111 [] \'qweqwe\'>\n>>111\nsome comment\nhttps://2ch.hk/b/res/222.html#123\n'))
+		assert(out.endswith('<Post reply_to_id () \'reply_to_comment\'>\n>>reply_to_id\nsome comment\nhttp://post_url\n'))
 
 		err = capsys.readouterr().err
 		assert(err == '')
 
 	def test_poster_got_reply(self, monkeypatch, fake_request_for_replies, capsys):
-		poster = self.fake_poster(monkeypatch, 175409951)
+		poster = self.fake_poster(monkeypatch, '175409951')
 		poster.start()
-		time.sleep(0.03)
+		time.sleep(0.04)
 		poster._stopped = True
 
 		out = capsys.readouterr().out.split('\n')
@@ -114,21 +112,22 @@ class TestAutoposter:
 		comment, pic_file, thread_id, reply_to = autoposter.posting_queue.get()
 		assert(comment == 'new generated reply')
 		assert(pic_file == None)
-		assert(thread_id == '222')
+		assert(thread_id == 'thread_id')
 		assert(reply_to.id == '175410055')
 		assert(reply_to.comment == 'Какаю бабочками, писаю радугой. Ты просто за ручку не держался, поэтому не в курсе.')
 
 
 class OptsFake():
 	board = 'b'
-	post_url = ''
 	post_interval = 25
 	passcode = ''
 	watch_interval = 1
 
 	max_threads = 30
-	min_oppost_len = 50
-	max_oppost_len = 2000
+	thread_id = ''
+	max_posts = 5
+	min_post_len = 50
+	max_post_len = 2000
 
 	max_res_len = 20
 
