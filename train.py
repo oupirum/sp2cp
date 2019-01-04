@@ -7,6 +7,7 @@ from model import create_model
 from tensorflow.python.keras.callbacks import Callback, ModelCheckpoint
 from tensorflow.python.keras.models import load_model
 from tensorflow.python.keras.utils import multi_gpu_model
+from tensorflow.python.client import device_lib
 
 def main():
 	os.makedirs(OPTS.models_dir, exist_ok=True)
@@ -45,6 +46,8 @@ def main():
 	y = np.roll(x, -1, 1)
 	y = y[:, :, None]
 
+	print('available devices:')
+	print(device_lib.list_local_devices())
 	if OPTS.gpus > 1:
 		model = multi_gpu_model(model, OPTS.gpus)
 

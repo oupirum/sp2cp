@@ -16,7 +16,7 @@ class TestGrubThreads:
 		assert('Отнесу на руках тебя. Город?\n\n'
 				'А ты хорош)\nмимопроходил\n\n' in comments)
 		assert(comments.endswith('Пьяные голоса пообещали размотать.\n\n'))
-		assert(len(comments) == 20500)
+		assert(len(comments) == 19462)
 
 	def test_thread_posts_to_pairs(self, monkeypatch):
 		def request_fake(url):

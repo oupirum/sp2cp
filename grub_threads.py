@@ -22,17 +22,18 @@ def main():
 			threads = api.get_threads(OPTS.board)
 			for thread_id in threads:
 				comments = parse_thread(thread_id, OPTS.board)
-				print(comments)
-				with open(
-						os.path.join(OPTS.dataset_dir, thread_id + '.txt'),
-						'ab') as f:
-					f.write(comments.encode('utf-8'))
+				if comments:
+					print(comments)
+					with open(
+							os.path.join(OPTS.dataset_dir, thread_id + '.txt'),
+							'ab') as f:
+						f.write(comments.encode('utf-8'))
 		finally:
 			with open(readen_post_ids_file, 'w') as f:
 				f.write('\n'.join(readen_post_ids))
 
 		print('pause...')
-		time.sleep(1800)
+		time.sleep(900)
 
 def parse_thread(thread_id, board):
 	try:

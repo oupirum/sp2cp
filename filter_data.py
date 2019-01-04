@@ -26,6 +26,7 @@ def filter_data(comment):
 		for lf in line_filters:
 			if globals()[lf](line.lower()):
 				lines.pop(i)
+				break
 
 		if len(line) == 0:
 			lines.pop(i)
@@ -42,7 +43,7 @@ def skip_line_short(line):
 	return len(line) > 0 and len(line) < 2
 
 def skip_line_quote(line):
-	return re.match(r'>\d\d\d', line) != None
+	return line.startswith('>')
 
 def skip_line_url(line):
 	return line.startswith('http://') or line.startswith('https://')
@@ -65,10 +66,10 @@ def skip_line_exclude(line):
 	for word in words_to_exclude:
 		contains = \
 			re.fullmatch(
-				r'[^a-zа-яё0-9]*' + word + '.*?',
+				'[^a-zа-яё0-9]*' + word + '.*?',
 				line, re.U) \
 			or re.fullmatch(
-				r'.*?' + word + r'[^a-zа-яё0-9]*',
+				'.*?' + word + '[^a-zа-яё0-9]*',
 				line, re.U)
 		if contains and len(line) - len(word) <= 16:
 			return True
