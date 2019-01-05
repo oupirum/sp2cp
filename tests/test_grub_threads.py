@@ -1,15 +1,16 @@
-from grub_threads import parse_thread, thread_posts_to_pairs
+from grub_threads import read_thread, thread_posts_to_pairs
 import api
+import json
 
 class TestGrubThreads:
 
-	def test_parse_thread(self, monkeypatch):
-		def request_fake(url):
+	def test_read_thread(self, monkeypatch):
+		def request_fake(url, passcode=''):
 			with open('./tests/thread.json', 'rb') as f:
-				return f.read().decode('utf-8')
+				return json.loads(f.read().decode('utf-8'))
 		monkeypatch.setattr(api, 'request_json', request_fake)
 
-		comments = parse_thread('123', 'b')
+		comments = read_thread('123', 'b')
 
 		assert('Переезжай ко мне\n\n'
 				'Я умру от недосыпа быстрее, чем соберу вещи.\n\n' in comments)
@@ -19,9 +20,9 @@ class TestGrubThreads:
 		assert(len(comments) == 19462)
 
 	def test_thread_posts_to_pairs(self, monkeypatch):
-		def request_fake(url):
+		def request_fake(url, passcode=''):
 			with open('./tests/thread.json', 'rb') as f:
-				return f.read().decode('utf-8')
+				return json.loads(f.read().decode('utf-8'))
 		monkeypatch.setattr(api, 'request_json', request_fake)
 
 		posts = api.get_thread_posts('b', '123')

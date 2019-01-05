@@ -1,23 +1,19 @@
-import urllib.request
-import json
 import re
 from html.parser import HTMLParser
 import requests
 from transliterate import translit
 import os
 
-def get_threads(board):
-	json_str = request_json('https://2ch.hk/' + board + '/threads.json')
-	threads = json.loads(json_str)
+def get_threads(board, passcode=''):
+	threads = request_json('https://2ch.hk/' + board + '/threads.json', passcode)
 	thread_ids = list(map(
 		lambda thread: str(thread['num']),
 		threads['threads']
 	))
 	return thread_ids
 
-def get_thread_posts(board, thread_id):
-	json_str = request_json('https://2ch.hk/' + board + '/res/' + thread_id + '.json')
-	thread = json.loads(json_str)
+def get_thread_posts(board, thread_id, passcode=''):
+	thread = request_json('https://2ch.hk/' + board + '/res/' + thread_id + '.json', passcode)
 	posts = list(map(
 		lambda post: Post(str(post['num']), post['comment']),
 		thread['threads'][0]['posts']
@@ -33,12 +29,18 @@ def get_thread_posts(board, thread_id):
 
 	return posts
 
-def request_json(url):
-	req = urllib.request.Request(url)
-	resp = urllib.request.urlopen(req)
-	length = int(resp.getheader('Content-Length', 524288))
-	json_str = resp.read(length).decode('utf-8')
-	return json_str
+def request_json(url, passcode):
+	response = requests.get(
+		url,
+		cookies={
+			'passcode_auth': passcode,
+		},
+	)
+
+	if response.status_code != 200:
+		response.raise_for_status()
+
+	return response.json()
 
 def parse_post_html(post_html):
 	parser = PostHTMLParser()
@@ -135,6 +137,9 @@ def post(comment, thread_id, board, passcode, pic_file=None):
 			'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
 					'(KHTML, like Gecko) Chrome/66.0.3359.170 Safari/537.36',
 		})
+
+	if response.status_code != 200:
+		response.raise_for_status()
 
 	response_obj = response.json()
 	post_id = None

@@ -14,9 +14,9 @@ class TestAutoposter:
 
 	@pytest.fixture()
 	def fake_request_for_select(self, monkeypatch):
-		def request_json_fake(url):
+		def request_json_fake(url, passcode=''):
 			if url.endswith('threads.json'):
-				return json.dumps({
+				return {
 					'threads': [
 						{'comment': '', 'num': '0'},
 						{'comment': '', 'num': '1'},
@@ -24,13 +24,13 @@ class TestAutoposter:
 						{'comment': '', 'num': '3'},
 						{'comment': '', 'num': '4'},
 					]
-				})
+				}
 			with open('./tests/thread.json', 'rb') as f:
 				thread = json.loads(f.read().decode('utf-8'))
 			i = int(re.fullmatch('.*?(\d)\.json', url).group(1))
 			posts = thread['threads'][0]['posts']
 			thread['threads'][0]['posts'] = posts[i*20:i*20+20]
-			return json.dumps(thread, ensure_ascii=False)
+			return thread
 		monkeypatch.setattr(api, 'request_json', request_json_fake)
 
 	def test_select_threads(self, fake_request_for_select):
@@ -46,9 +46,9 @@ class TestAutoposter:
 
 	@pytest.fixture()
 	def fake_request_for_replies(self, monkeypatch):
-		def request_json_fake(url):
+		def request_json_fake(url, passcode=''):
 			with open('./tests/thread.json', 'rb') as f:
-				return f.read().decode('utf-8')
+				return json.loads(f.read().decode('utf-8'))
 		monkeypatch.setattr(api, 'request_json', request_json_fake)
 
 	def fake_poster(self, monkeypatch, post_id, error=None):

@@ -5,7 +5,7 @@ from tensorflow.python.keras.models import Model
 
 def create_model(
 	seq_len,
-	n_input_nodes, n_embedding_nodes=200, n_hidden_nodes=200,
+	n_input_nodes, n_embedding_nodes=150, n_hidden_nodes=150,
 	batch_size=20, stateful=False
 ):
 	input_layer = Input(

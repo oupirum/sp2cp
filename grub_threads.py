@@ -19,9 +19,9 @@ def main():
 
 	while True:
 		try:
-			threads = api.get_threads(OPTS.board)
+			threads = api.get_threads(OPTS.board, OPTS.passcode)
 			for thread_id in threads:
-				comments = parse_thread(thread_id, OPTS.board)
+				comments = read_thread(thread_id, OPTS.board, OPTS.passcode)
 				if comments:
 					print(comments)
 					with open(
@@ -36,9 +36,9 @@ def main():
 		print('pause...')
 		time.sleep(900)
 
-def parse_thread(thread_id, board):
+def read_thread(thread_id, board, passcode=''):
 	try:
-		posts = api.get_thread_posts(board, thread_id)
+		posts = api.get_thread_posts(board, thread_id, passcode)
 
 		for post in posts:
 			post.comment = filter_data(post.comment)
@@ -94,6 +94,13 @@ if __name__ == '__main__':
 		type=str,
 		default='./dataset/threads/'
 	)
+
+	parser.add_argument(
+		'--passcode',
+		type=str,
+		default=''
+	)
+
 	OPTS = parser.parse_args()
 
 	try:

@@ -5,9 +5,9 @@ import json
 class TestApi:
 
 	def test_get_threads(self, monkeypatch):
-		def request_fake(url):
+		def request_fake(url, passcode=''):
 			with open('./tests/threads.json', 'rb') as f:
-				return f.read().decode('utf-8')
+				return json.loads(f.read().decode('utf-8'))
 		monkeypatch.setattr(api, 'request_json', request_fake)
 
 		threads = get_threads('b')
@@ -16,9 +16,9 @@ class TestApi:
 		assert(len(threads) == 206)
 
 	def test_get_thread_posts(self, monkeypatch):
-		def request_fake(url):
+		def request_fake(url, passcode=''):
 			with open('./tests/thread.json', 'rb') as f:
-				return f.read().decode('utf-8')
+				return json.loads(f.read().decode('utf-8'))
 		monkeypatch.setattr(api, 'request_json', request_fake)
 
 		posts = get_thread_posts('b', '123')
