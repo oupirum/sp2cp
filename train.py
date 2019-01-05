@@ -36,8 +36,6 @@ def main():
 	model = create_model(
 		seq_len=data.shape[-1],
 		n_input_nodes=len(id2token),
-		n_embedding_nodes=OPTS.embedding_nodes,
-		n_hidden_nodes=OPTS.hidden_nodes,
 		batch_size=OPTS.batch_size
 	)
 
@@ -145,17 +143,6 @@ if __name__ == '__main__':
 		type=int,
 		default=100,
 		help='How often to save weights'
-	)
-
-	parser.add_argument(
-		'--embedding_nodes',
-		type=int,
-		default=200
-	)
-	parser.add_argument(
-		'--hidden_nodes',
-		type=int,
-		default=300
 	)
 
 	parser.add_argument(
