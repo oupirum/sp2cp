@@ -22,18 +22,22 @@ def main():
 	PostingRunner().start()
 
 	if OPTS.thread_id:
-		selected_posts = select_thread_posts(OPTS.board,
-				thread_id=OPTS.thread_id,
-				max_posts=OPTS.max_posts,
-				min_post_len=OPTS.min_post_len,
-				max_post_len=OPTS.max_post_len)
+		selected_posts = select_thread_posts(
+			OPTS.board,
+			thread_id=OPTS.thread_id,
+			max_posts=OPTS.max_posts,
+			min_post_len=OPTS.min_post_len,
+			max_post_len=OPTS.max_post_len
+		)
 		for post in selected_posts:
 			produce_post(OPTS.thread_id, post)
 	else:
-		selected_threads = select_threads(OPTS.board,
-				max_threads=OPTS.max_threads,
-				min_post_len=OPTS.min_post_len,
-				max_post_len=OPTS.max_post_len)
+		selected_threads = select_threads(
+			OPTS.board,
+			max_threads=OPTS.max_threads,
+			min_post_len=OPTS.min_post_len,
+			max_post_len=OPTS.max_post_len
+		)
 		for thread in selected_threads:
 			thread_id, posts = thread
 			produce_post(thread_id, posts[0])
@@ -43,11 +47,13 @@ def main():
 
 
 def produce_post(thread_id, reply_to):
+	# TODO: filter_data
 	seed_tokens = comment_to_tokens(reply_to.comment)
 	gen_tokens = generator.generate(
-			(seed_tokens,),
-			forbidden_tokens=('<unk>',),
-			min_res_len=3, max_res_len=OPTS.max_res_len)[0]
+		(seed_tokens,),
+		forbidden_tokens=('<unk>',),
+		min_res_len=3, max_res_len=OPTS.max_res_len
+	)[0]
 
 	comment = tokens_to_string(gen_tokens)
 	pic_file = None
@@ -89,11 +95,12 @@ class Poster(threading.Thread):
 
 	def run(self):
 		response, id, link = api.post(
-				self._comment,
-				self._thread_id,
-				OPTS.board,
-				OPTS.passcode,
-				self._pic_file)
+			self._comment,
+			self._thread_id,
+			OPTS.board,
+			OPTS.passcode,
+			self._pic_file
+		)
 		print('')
 		if response['Error']:
 			print(response)
@@ -160,8 +167,10 @@ class Poster(threading.Thread):
 		time.sleep(5)
 
 
-def select_threads(board, max_threads,
-		min_post_len, max_post_len):
+def select_threads(
+	board, max_threads,
+	min_post_len, max_post_len
+):
 	selected_threads = []
 
 	threads = api.get_threads(board)
@@ -181,12 +190,15 @@ def select_threads(board, max_threads,
 
 	return selected_threads
 
-def select_thread_posts(board, thread_id, max_posts,
-		min_post_len, max_post_len):
+def select_thread_posts(
+	board, thread_id, max_posts,
+	min_post_len, max_post_len
+):
 	selected_posts = []
 
 	posts = api.get_thread_posts(board, thread_id)
 	random.shuffle(posts)
+
 	for post in posts:
 		seed_tokens = comment_to_tokens(post.comment)
 		if len(seed_tokens) >= min_post_len \
@@ -234,73 +246,86 @@ def select_random_pic(dir):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
-			'--weights_file',
-			type=str,
-			default='./models/weights.h5')
+		'--weights_file',
+		type=str,
+		default='./models/weights.h5'
+	)
 	parser.add_argument(
-			'--id2token_file',
-			type=str,
-			default='./models/id2token.json')
+		'--id2token_file',
+		type=str,
+		default='./models/id2token.json'
+	)
 
 	parser.add_argument(
-			'--board',
-			type=str,
-			default='b')
+		'--board',
+		type=str,
+		default='b'
+	)
 	parser.add_argument(
-			'--passcode',
-			type=str,
-			required=True)
+		'--passcode',
+		type=str,
+		required=True
+	)
 	parser.add_argument(
-			'--post_interval',
-			type=int,
-			default=25,
-			help='Interval between posting new comments (seconds)')
+		'--post_interval',
+		type=int,
+		default=25,
+		help='Interval between posting new comments (seconds)'
+	)
 	parser.add_argument(
-			'--watch_interval',
-			type=int,
-			default=60,
-			help='Interval for polling new replies (seconds)')
+		'--watch_interval',
+		type=int,
+		default=60,
+		help='Interval for polling new replies (seconds)'
+	)
 
-	# mode "reply to oppost in several threads"
+	# Mode "reply to oppost in several threads"
 	parser.add_argument(
-			'--max_threads',
-			type=int,
-			default=30,
-			help='Max amount of threads to reply')
+		'--max_threads',
+		type=int,
+		default=30,
+		help='Max amount of threads to reply'
+	)
 
-	# mode "reply to several posts in one specified thread"
+	# Mode "reply to several posts in one specified thread"
 	parser.add_argument(
-			'--thread_id',
-			type=str,
-			default='',
-			help='Thread to reply')
+		'--thread_id',
+		type=str,
+		default='',
+		help='Thread to reply'
+	)
 	parser.add_argument(
-			'--max_posts',
-			type=int,
-			default=5,
-			help='Max amount of posts in thread to reply')
-
-	parser.add_argument(
-			'--min_post_len',
-			type=int,
-			default=10,
-			help='Min post len to select (words)')
-	parser.add_argument(
-			'--max_post_len',
-			type=int,
-			default=200,
-			help='Max post len to select (words)')
+		'--max_posts',
+		type=int,
+		default=5,
+		help='Max amount of posts in thread to reply'
+	)
 
 	parser.add_argument(
-			'--max_res_len',
-			type=int,
-			default=30,
-			help='Max len of generated response (words)')
+		'--min_post_len',
+		type=int,
+		default=10,
+		help='Min post len to select (words)'
+	)
+	parser.add_argument(
+		'--max_post_len',
+		type=int,
+		default=200,
+		help='Max post len to select (words)'
+	)
 
 	parser.add_argument(
-			'--pics_dir',
-			type=str,
-			default='')
+		'--max_res_len',
+		type=int,
+		default=30,
+		help='Max len of generated response (words)'
+	)
+
+	parser.add_argument(
+		'--pics_dir',
+		type=str,
+		default=''
+	)
 
 	OPTS = parser.parse_args()
 

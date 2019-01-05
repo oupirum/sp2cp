@@ -4,8 +4,9 @@ def filter_data(comment):
 	lines = comment.split('\n')
 
 	line_filters = list(filter(
-			lambda name: name.startswith('skip_line_'),
-			[k for k, v in globals().items()]))
+		lambda name: name.startswith('skip_line_'),
+		[k for k, v in globals().items()]
+	))
 
 	for i in range(len(lines) - 1, -1, -1):
 		line = lines[i] + ''
@@ -65,12 +66,14 @@ def skip_line_exclude(line):
 
 	for word in words_to_exclude:
 		contains = \
-			re.fullmatch(
-				'[^a-zа-яё0-9]*' + word + '.*?',
-				line, re.U) \
-			or re.fullmatch(
-				'.*?' + word + '[^a-zа-яё0-9]*',
-				line, re.U)
+				re.fullmatch(
+					'[^a-zа-яё0-9]*' + word + '.*?',
+					line, re.U
+				) \
+				or re.fullmatch(
+					'.*?' + word + '[^a-zа-яё0-9]*',
+					line, re.U
+				)
 		if contains and len(line) - len(word) <= 16:
 			return True
 

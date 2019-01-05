@@ -10,23 +10,26 @@ def get_threads(board):
 	json_str = request_json('https://2ch.hk/' + board + '/threads.json')
 	threads = json.loads(json_str)
 	thread_ids = list(map(
-			lambda thread: str(thread['num']),
-			threads['threads']))
+		lambda thread: str(thread['num']),
+		threads['threads']
+	))
 	return thread_ids
 
 def get_thread_posts(board, thread_id):
 	json_str = request_json('https://2ch.hk/' + board + '/res/' + thread_id + '.json')
 	thread = json.loads(json_str)
 	posts = list(map(
-			lambda post: Post(str(post['num']), post['comment']),
-			thread['threads'][0]['posts']))
+		lambda post: Post(str(post['num']), post['comment']),
+		thread['threads'][0]['posts']
+	))
 
 	for post in posts:
 		post.comment, post.reply_to = parse_post_html(post.comment)
 
 	posts = list(filter(
-			lambda post: post.comment,
-			posts))
+		lambda post: post.comment,
+		posts
+	))
 
 	return posts
 
@@ -43,11 +46,13 @@ def parse_post_html(post_html):
 	post_text = parser.post
 
 	post_lines = list(map(
-			lambda line: line.strip(),
-			post_text.split('\n')))
+		lambda line: line.strip(),
+		post_text.split('\n')
+	))
 	post_lines = list(filter(
-			lambda line: len(line) > 0,
-			post_lines))
+		lambda line: len(line) > 0,
+		post_lines
+	))
 	return ('\n'.join(post_lines), parser.reply_to)
 
 
@@ -109,9 +114,10 @@ def post(comment, thread_id, board, passcode, pic_file=None):
 	}
 	if pic_file:
 		pic_name = translit(
-				os.path.basename(pic_file),
-				'ru',
-				reversed=True)
+			os.path.basename(pic_file),
+			'ru',
+			reversed=True
+		)
 		formdata['formimages[]'] = (pic_name, open(pic_file, 'rb'))
 
 	response = requests.post(

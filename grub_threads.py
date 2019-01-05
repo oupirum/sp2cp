@@ -25,8 +25,9 @@ def main():
 				if comments:
 					print(comments)
 					with open(
-							os.path.join(OPTS.dataset_dir, thread_id + '.txt'),
-							'ab') as f:
+						os.path.join(OPTS.dataset_dir, thread_id + '.txt'),
+						'ab'
+					) as f:
 						f.write(comments.encode('utf-8'))
 		finally:
 			with open(readen_post_ids_file, 'w') as f:
@@ -42,14 +43,16 @@ def parse_thread(thread_id, board):
 		for post in posts:
 			post.comment = filter_data(post.comment)
 		posts = list(filter(
-				lambda post: len(post.comment) > 1,
-				posts))
+			lambda post: len(post.comment) > 1,
+			posts
+		))
 
 		pairs = thread_posts_to_pairs(posts)
 
 		pairs = list(filter(
-				lambda pair: pair[1].id not in readen_post_ids,
-				pairs))
+			lambda pair: pair[1].id not in readen_post_ids,
+			pairs
+		))
 		if len(pairs) == 0:
 			return
 
@@ -66,8 +69,9 @@ def parse_thread(thread_id, board):
 
 def thread_posts_to_pairs(posts):
 	posts = list(filter(
-			lambda post: len(post.reply_to) <= 1,
-			posts))
+		lambda post: len(post.reply_to) <= 1,
+		posts
+	))
 
 	map = {post.id: post for post in posts}
 	pairs = []
@@ -81,13 +85,15 @@ def thread_posts_to_pairs(posts):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
-			'--board',
-			type=str,
-			default='b')
+		'--board',
+		type=str,
+		default='b'
+	)
 	parser.add_argument(
-			'--dataset_dir',
-			type=str,
-			default='./dataset/threads/')
+		'--dataset_dir',
+		type=str,
+		default='./dataset/threads/'
+	)
 	OPTS = parser.parse_args()
 
 	try:
