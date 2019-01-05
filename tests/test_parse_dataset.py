@@ -1,7 +1,7 @@
 from parse_dataset import \
-		process_token, \
 		parse_dataset, \
 		comment_to_tokens
+from parse_utils import process_token
 import random
 
 class TestParseDataset():

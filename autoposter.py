@@ -5,6 +5,7 @@ import urllib.error
 import api
 from generate import Generator
 from parse_dataset import comment_to_tokens
+from filter_data import filter_data
 import time
 import random
 import re
@@ -179,6 +180,9 @@ def select_threads(
 		if not posts:
 			continue
 
+		for post in posts:
+			post.comment = filter_data(post.comment)
+
 		seed_tokens = comment_to_tokens(posts[0].comment)
 		if len(posts) >= 3 \
 				and len(seed_tokens) >= min_post_len \
@@ -200,6 +204,8 @@ def select_thread_posts(
 	random.shuffle(posts)
 
 	for post in posts:
+		post.comment = filter_data(post.comment)
+
 		seed_tokens = comment_to_tokens(post.comment)
 		if len(seed_tokens) >= min_post_len \
 				and len(seed_tokens) <= max_post_len:
