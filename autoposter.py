@@ -1,7 +1,6 @@
 import argparse
 import os
 import signal
-import urllib.error
 import api
 from generate import Generator
 from parse_dataset import comment_to_tokens
@@ -11,6 +10,7 @@ import random
 import re
 import threading
 import queue
+import requests
 
 OPTS = None
 posting_queue = queue.Queue()
@@ -48,7 +48,6 @@ def main():
 
 
 def produce_post(thread_id, reply_to):
-	# TODO: filter_data
 	seed_tokens = comment_to_tokens(reply_to.comment)
 	gen_tokens = generator.generate(
 		(seed_tokens,),
@@ -125,9 +124,9 @@ class Poster(threading.Thread):
 			replies = []
 			try:
 				replies = self._get_replies(post_id)
-			except urllib.error.HTTPError as err:
+			except requests.exceptions.HTTPError as err:
 				print('')
-				print('HTTPError:', err.code, err.reason)
+				print('HTTPError:', err.response.status_code, err.response.reason)
 				n_left = threading.active_count() - 3
 				print('watchers left:', n_left)
 				if n_left == 0:
@@ -142,7 +141,7 @@ class Poster(threading.Thread):
 					seen.add(reply.id)
 
 					print('')
-					print('============== NEW REPLY ==============')
+					print('============== NEW REPLY =======================================================')
 					print(self._comment)
 					print('->', reply.comment)
 					print('https://2ch.hk/%s/res/%s.html#%s'
