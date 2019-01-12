@@ -134,8 +134,7 @@ def post(comment, thread_id, board, passcode, pic_file=None):
 			'Referer': thread_url,
 			'Host': '2ch.hk',
 			'Origin': 'https://2ch.hk',
-			'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
-					'(KHTML, like Gecko) Chrome/66.0.3359.170 Safari/537.36',
+			'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36',
 		})
 
 	if response.status_code != 200:

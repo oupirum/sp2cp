@@ -16,8 +16,8 @@ def filter_data(comment):
 		line = cut_by_regex(line, '[.,] ((ре)?-?ролл)[.,]?$')
 		line = cut_by_regex(line, '[.,] ((re)?-?roll)[.,]?$')
 		line = cut_by_regex(line, '(: )?https?://[a-z0-9#?=%&@\-_.:/)!]+$')
-		line = cut_by_regex(line, 'https?://[a-z0-9#?=%&@\-_.:/()\[\]!,]+$')
-		line = cut_by_regex(line, 'https?://[a-z0-9#?=%&@\-_.:/()\[\]!,]+ ')
+		line = cut_by_regex(line, 'https?://[a-zа-яё0-9#?=%&@\-_.:/()\[\]!,]+$')
+		line = cut_by_regex(line, 'https?://[a-zа-яё0-9#?=%&@\-_.:/()\[\]!,]+ ')
 
 		line = line.strip()
 		if line != lines[i]:

@@ -2,7 +2,6 @@ import re
 
 def fix_typos(s):
 	s = ' ' + s + ' '
-	s = s.replace('блять', 'блядь')
 	s = s.replace('переодическ', 'периодическ')
 	s = s.replace('ё', 'е')
 	s = s.replace('похромист', 'погромист')

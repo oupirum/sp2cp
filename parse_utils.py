@@ -38,6 +38,8 @@ def process_token(token, tokens):
 		tokens.append('>')
 		return process_token(re.sub('^>+', '', token), tokens)
 
+	if re.fullmatch('[a-fole0-9]{32,}', token):
+		return False
 	if re.fullmatch('[a-z0-9.\-]+@[a-z0-9.\-]+', token):
 		tokens.append('ti.hui@i.pidor.com')
 		return True
