@@ -35,7 +35,8 @@ def create_model(
 	model = Model(inputs=input_layer, outputs=output_layer)
 	model.compile(
 		loss="sparse_categorical_crossentropy",
-		optimizer='adam'
+		optimizer='adam',
+		metrics=['accuracy']
 	)
 
 	return model

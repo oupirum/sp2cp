@@ -2,7 +2,7 @@
 
 # WIP
 
-### Imageboard bot with recurrent neural network (RNN on GRU)
+### Imageboard bot with recurrent neural network (RNN, GRU)
 
 Бот с нейросетью, обучающейся генерировать комментарии на датасете из тредов с 2ch.hk
 

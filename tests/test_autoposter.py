@@ -102,7 +102,7 @@ class TestAutoposter:
 		poster._stopped = True
 
 		out = capsys.readouterr().out.split('\n')
-		assert('============== NEW REPLY ==============' in out)
+		assert('============== NEW REPLY =======================================================' in out)
 		assert('-> Какаю бабочками, писаю радугой. Ты просто за ручку не держался, поэтому не в курсе.' in out)
 
 		err = capsys.readouterr().err

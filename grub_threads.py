@@ -29,6 +29,8 @@ def main():
 						'ab'
 					) as f:
 						f.write(comments.encode('utf-8'))
+		except:
+			print(traceback.format_exc())
 		finally:
 			with open(readen_post_ids_file, 'w') as f:
 				f.write('\n'.join(readen_post_ids))

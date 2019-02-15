@@ -31,10 +31,8 @@ def main():
 
 	print('')
 	print('tokens count:')
-	print('>= 1', len(tcs))
-	print('>= 2', len(list(filter(lambda tc: tc[1] >= 2, tcs))))
-	print('>= 3', len(list(filter(lambda tc: tc[1] >= 3, tcs))))
-	print('>= 4', len(list(filter(lambda tc: tc[1] >= 4, tcs))))
+	for i in range(1, 10):
+		print('>= %d' % i, len(list(filter(lambda tc: tc[1] >= i, tcs))))
 
 def parse_dataset(ds_dir, lexicon_limit, seq_min_len, seq_max_len):
 	id2token = [

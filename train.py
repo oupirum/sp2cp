@@ -87,11 +87,11 @@ class SaveStepCallback(Callback):
 		print('\nsave weights:', weights_file)
 		self._model.save_weights(weights_file)
 
-		loss_file = os.path.join(
+		val_file = os.path.join(
 			OPTS.models_dir,
-			'loss_e%d_end_%.4f.txt' % (self._epoch, logs.get('loss'))
+			'val_e%d_end_%.4f_%.4f.txt' % (self._epoch, logs.get('loss'), logs.get('acc'))
 		)
-		open(loss_file, 'w').close()
+		open(val_file, 'w').close()
 
 	def on_batch_end(self, batch, logs={}):
 		if (batch + 1) % self._save_every == 0:
@@ -102,11 +102,11 @@ class SaveStepCallback(Callback):
 			print('\nsave weights:', weights_file)
 			self._model.save_weights(weights_file)
 
-			loss_file = os.path.join(
+			val_file = os.path.join(
 				OPTS.models_dir,
-				'loss_e%d_b%d_%.4f.txt' % (self._epoch, batch, logs.get('loss'))
+				'val_e%d_b%d_%.4f_%.4f.txt' % (self._epoch, batch, logs.get('loss'), logs.get('acc'))
 			)
-			open(loss_file, 'w').close()
+			open(val_file, 'w').close()
 
 
 if __name__ == '__main__':
