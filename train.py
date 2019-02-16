@@ -36,7 +36,10 @@ def main():
 	model = create_model(
 		seq_len=data.shape[-1],
 		n_input_nodes=len(id2token),
-		batch_size=OPTS.batch_size
+		n_embedding_nodes=OPTS.embedding_size,
+		n_hidden_nodes=OPTS.embedding_size,
+		batch_size=OPTS.batch_size,
+		stateful=False
 	)
 
 	ckpt_file = os.path.join(OPTS.models_dir, 'ckpt.h5')
@@ -143,6 +146,12 @@ if __name__ == '__main__':
 		type=int,
 		default=100,
 		help='How often to save weights'
+	)
+
+	parser.add_argument(
+		'--embedding_size',
+		type=int,
+		default=256
 	)
 
 	parser.add_argument(

@@ -5,8 +5,9 @@ from tensorflow.python.keras.models import Model
 
 def create_model(
 	seq_len,
-	n_input_nodes, n_embedding_nodes=100, n_hidden_nodes=100,
-	batch_size=20, stateful=False
+	n_input_nodes, n_embedding_nodes, n_hidden_nodes,
+	batch_size,
+	stateful
 ):
 	input_layer = Input(
 		batch_shape=(batch_size, seq_len)

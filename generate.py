@@ -27,7 +27,11 @@ def main():
 		print('>>>>>>', ' '.join(res_tokens))
 
 	print('sequences:', len(sequences))
-	Generator(OPTS.weights_file, OPTS.id2token_file).generate(
+	Generator(
+		OPTS.weights_file,
+		OPTS.id2token_file,
+		OPTS.embedding_size
+	).generate(
 		sequences,
 		forbidden_tokens=OPTS.forbidden_tokens.split(',') if OPTS.forbidden_tokens else (),
 		max_res_len=OPTS.max_res_len,
@@ -62,6 +66,13 @@ if __name__ == '__main__':
 		type=int,
 		default=200
 	)
+
+	parser.add_argument(
+		'--embedding_size',
+		type=int,
+		default=256
+	)
+
 	OPTS = parser.parse_args()
 
 	main()
