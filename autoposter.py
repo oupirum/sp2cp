@@ -229,11 +229,7 @@ def tokens_to_string(tokens):
 		if token in ['<eoc>', '<pad>', '<unk>']:
 			tokens[i] = ''
 		if token == '<n>':
-			if len(tokens) > i + 1 and tokens[i + 1] in ('к18', 'k18'):
-				tokens[i] = ''
-				tokens[i + 1] = '2k18'
-			else:
-				tokens[i] = str(random.randrange(0, 101, 1))
+			tokens[i] = str(random.randrange(0, 101, 1))
 
 	res = ' '.join(tokens)
 	res = re.sub(' ([.,:?)!;])', '\\1', res)
