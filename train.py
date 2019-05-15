@@ -37,7 +37,7 @@ def main():
 		seq_len=data.shape[-1],
 		n_input_nodes=len(id2token),
 		n_embedding_nodes=OPTS.embedding_size,
-		n_hidden_nodes=OPTS.embedding_size,
+		n_hidden_nodes=OPTS.hidden_size,
 		batch_size=OPTS.batch_size,
 		stateful=False
 	)
@@ -97,7 +97,7 @@ class SaveStepCallback(Callback):
 		open(val_file, 'w').close()
 
 	def on_batch_end(self, batch, logs={}):
-		if (batch + 1) % self._save_every == 0:
+		if self._save_every > 0 and (batch + 1) % self._save_every == 0:
 			weights_file = os.path.join(
 				OPTS.models_dir,
 				'weights_e%d_b%d.h5' % (self._epoch, batch)
@@ -144,12 +144,17 @@ if __name__ == '__main__':
 	parser.add_argument(
 		'--save_every_batch',
 		type=int,
-		default=100,
+		default=0,
 		help='How often to save weights'
 	)
 
 	parser.add_argument(
 		'--embedding_size',
+		type=int,
+		default=256
+	)
+	parser.add_argument(
+		'--hidden_size',
 		type=int,
 		default=256
 	)
