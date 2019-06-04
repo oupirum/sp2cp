@@ -18,7 +18,7 @@ generator = None
 
 def main():
 	global generator
-	generator = Generator(OPTS.weights_file, OPTS.id2token_file)
+	generator = Generator(OPTS.weights_file, OPTS.id2token_file, OPTS.embedding_size, OPTS.hidden_size)
 
 	PostingRunner().start()
 
@@ -320,6 +320,17 @@ if __name__ == '__main__':
 		type=int,
 		default=30,
 		help='Max len of generated response (words)'
+	)
+
+	parser.add_argument(
+		'--embedding_size',
+		type=int,
+		default=1024
+	)
+	parser.add_argument(
+		'--hidden_size',
+		type=int,
+		default=1024
 	)
 
 	parser.add_argument(

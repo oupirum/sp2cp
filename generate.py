@@ -30,7 +30,8 @@ def main():
 	Generator(
 		OPTS.weights_file,
 		OPTS.id2token_file,
-		OPTS.embedding_size
+		OPTS.embedding_size,
+		OPTS.hidden_size
 	).generate(
 		sequences,
 		forbidden_tokens=OPTS.forbidden_tokens.split(',') if OPTS.forbidden_tokens else (),
@@ -70,7 +71,12 @@ if __name__ == '__main__':
 	parser.add_argument(
 		'--embedding_size',
 		type=int,
-		default=256
+		default=1024
+	)
+	parser.add_argument(
+		'--hidden_size',
+		type=int,
+		default=1024
 	)
 
 	OPTS = parser.parse_args()

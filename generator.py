@@ -3,8 +3,13 @@ import numpy as np
 from model import create_model
 
 class Generator:
-	def __init__(self, weights_file, id2token_file, embedding_size):
-		self._model, self._id2token = self._load_model(weights_file, id2token_file, embedding_size)
+	def __init__(self, weights_file, id2token_file, embedding_size, hidden_size):
+		self._model, self._id2token = self._load_model(
+			weights_file,
+			id2token_file,
+			embedding_size,
+			hidden_size
+		)
 		self._token2id = {token: id for id, token in enumerate(self._id2token)}
 
 	def generate(self,
@@ -33,7 +38,7 @@ class Generator:
 
 		return results
 
-	def _load_model(self, weights_file, id2token_file, embedding_size):
+	def _load_model(self, weights_file, id2token_file, embedding_size, hidden_size):
 		with open(id2token_file, 'rb') as f:
 			id2token = json.loads(f.read().decode('utf-8'))
 
@@ -41,7 +46,7 @@ class Generator:
 			seq_len=1,
 			n_input_nodes=len(id2token),
 			n_embedding_nodes=embedding_size,
-			n_hidden_nodes=embedding_size,
+			n_hidden_nodes=hidden_size,
 			batch_size=1,
 			stateful=True
 		)
