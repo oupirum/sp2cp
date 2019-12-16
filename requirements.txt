@@ -1,4 +1,4 @@
-tensorflow==1.8
+tensorflow==1.15.0
 h5py==2.7.1
 requests==2.18.4
 transliterate==1.10.1
