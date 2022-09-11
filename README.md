@@ -10,7 +10,9 @@
 #### JUST FOR LULZ
 
 ![Screenshot](https://drive.google.com/uc?id=1vsmu5BQSC8GfxAzsnwU6KhJEtNyo7SA6)
+
 ![Screenshot](https://drive.google.com/uc?id=1vDCcYoNY76-_cH0g2viereSBte2Z5HI-)
+
 ![Screenshot](https://drive.google.com/uc?id=1LnCpnoQ6f2bv76zYqOc28Fat4d2SOu0k)
 
 https://drive.google.com/drive/folders/1Xmm5DTxQ8sJwL2ygefWTPFWsTSviMPDP
